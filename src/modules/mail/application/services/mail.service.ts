@@ -3,7 +3,6 @@ import { IMailService } from '../interfaces/mail.service.interface';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import { PasswordResetEmailTemplate } from '../templates/password-reset.template';
 import { VerificationEmailTemplate } from '../templates/verification-email.template';
 
 @Injectable()
@@ -44,39 +43,23 @@ export class MailService implements IMailService {
       'http://localhost:4200';
     const verificationLink = `${frontendUrl}/auth/verify?token=${verificationToken}`;
 
+    const ttlSeconds =
+      this.configService.get<number>('redis.ttl.verification') || 172800;
+
+    const expiresInHours = Math.floor(ttlSeconds / 3600);
+
     const userName = email.split('@')[0];
 
     const subject = VerificationEmailTemplate.getSubject();
     const html = VerificationEmailTemplate.getHtml({
       userName,
       verificationLink,
+      expiresInHours,
     });
 
     await this.sendRawEmail(email, subject, html);
 
     this.logger.log(`Verification email sent to: ${email}`);
-  }
-
-  async sendPasswordResetEmail(
-    email: string,
-    resetToken: string,
-  ): Promise<void> {
-    const frontendUrl =
-      this.configService.get<string>('app.frontendUrl') ||
-      'http://localhost:4200';
-    const resetLink = `${frontendUrl}/auth/reset-password?token=${resetToken}`;
-
-    const userName = email.split('@')[0];
-
-    const subject = PasswordResetEmailTemplate.getSubject();
-    const html = PasswordResetEmailTemplate.getHtml({
-      userName,
-      resetLink,
-    });
-
-    await this.sendRawEmail(email, subject, html);
-
-    this.logger.log(`Password reset email sent to: ${email}`);
   }
 
   async sendRawEmail(to: string, subject: string, html: string): Promise<void> {

@@ -1,11 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { IAuthService } from '../interfaces/auth.service.interface';
-import { ZohoUserProfilePayload } from '../dto/zoho.dto';
-import { User } from '../../../../entities/user/user.entity';
-import { randomBytes, randomUUID } from 'node:crypto';
-import { UserStatus } from '../../domain/enum/user-status.enum';
+import { ResponseHandleZoho, ZohoUserProfilePayload } from '../dto/zoho.dto';
+import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
-import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -14,47 +11,46 @@ export class AuthService implements IAuthService {
   constructor(
     @Inject('IUserService')
     private readonly userService: userServiceInterface.IUserService,
-    @Inject('IMailService')
-    private readonly mailService: mailServiceInterface.IMailService,
   ) {}
 
-  async handleZohoLogin(zohoUser: ZohoUserProfilePayload): Promise<User> {
+  async handleZohoLogin(
+    zohoUser: ZohoUserProfilePayload,
+  ): Promise<ResponseHandleZoho> {
     this.logger.log(`Processing Zoho login for: ${zohoUser.email}`);
-    let user = await this.userService.findUserByEmail(zohoUser.email);
+    const user = await this.userService.findUserByEmail(zohoUser.email);
 
     if (!user) {
-      this.logger.log('Creating new user from Zoho id_token...');
-      user = await this.createUserFromZoho(zohoUser);
+      return { user_status: null };
     } else {
-      this.logger.log('User exists, proceeding...');
-      this.logger.log(user.isPending());
-      this.logger.log(user.status);
-      if (user.isPending()) {
-        const verificationToken = randomBytes(32).toString('hex');
-        this.logger.log(`Verification token: ${verificationToken}`);
+      if (user.isActive()) {
+        const update = this.buildOAuthProfileUpdate(user, zohoUser);
 
-        await this.mailService.sendVerificationEmail(
-          zohoUser.email,
-          verificationToken,
-        );
+        if (update) {
+          await this.userService.updateUser(user.id, update);
+        }
 
-        //Lưu token
+        return {
+          user_status: user.status,
+          accessToken: '',
+        };
       }
     }
-    return user;
+
+    return {
+      user_status: user.status,
+    };
   }
 
-  private async createUserFromZoho(
-    zohoUser: ZohoUserProfilePayload,
-  ): Promise<User> {
-    const user = new User(
-      randomUUID(),
-      zohoUser.email,
-      zohoUser.gender,
-      UserStatus.PENDING,
-    );
+  private buildOAuthProfileUpdate(
+    user: UserAuth,
+    zoho: ZohoUserProfilePayload,
+  ): Partial<UserAuth> | null {
+    const update: Partial<UserAuth> = {};
 
-    await this.userService.createUserFromOAuth(user);
-    return user;
+    if (zoho.gender && zoho.gender !== user.gender) {
+      update.gender = zoho.gender;
+    }
+
+    return Object.keys(update).length > 0 ? update : null;
   }
 }

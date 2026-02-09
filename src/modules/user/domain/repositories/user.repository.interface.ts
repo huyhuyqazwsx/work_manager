@@ -1,10 +1,6 @@
-import { User } from '../../../../entities/user/user.entity';
+import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { IBaseRepository } from '../../../../domain/repositories/base.repository';
 
-export interface IUserRepository {
-  findById(id: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
-  findAll(): Promise<User[]>;
-  save(user: User): Promise<void>;
-  update(id: string, user: Partial<User>): Promise<void>;
-  delete(id: string): Promise<void>;
+export interface IUserRepository extends IBaseRepository<UserAuth> {
+  findByEmail(email: string): Promise<UserAuth | null>;
 }

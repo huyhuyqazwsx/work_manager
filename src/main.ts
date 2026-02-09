@@ -11,19 +11,10 @@ async function bootstrap() {
     .setTitle('Work Manager API')
     .setDescription('API documentation for Work Manager')
     .setVersion('1.0')
-    .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-
-  SwaggerModule.setup('api', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: 'none',
-      filter: true,
-      showRequestDuration: true,
-    },
-  });
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(3000);
   console.log(`Application running on: http://localhost:3000`);

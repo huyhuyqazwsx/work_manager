@@ -7,6 +7,7 @@ import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { MailModule } from './modules/mail/mail.module';
+import { CacheModule } from './infrastructure/cache/cache.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { MailModule } from './modules/mail/mail.module';
       isGlobal: true,
       load: [configuration],
     }),
+    CacheModule,
     PrismaModule,
     AuthModule,
     UserModule,

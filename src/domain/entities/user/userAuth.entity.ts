@@ -1,6 +1,7 @@
-import { UserStatus } from '../../modules/auth/domain/enum/user-status.enum';
+import { UserStatus } from '../../../modules/user/domain/enum/user-status.enum';
+import { UserRole } from '../../../modules/user/domain/enum/user-role.enum';
 
-export class User {
+export class UserAuth {
   public readonly createdAt: Date;
   private _updatedAt: Date;
 
@@ -9,11 +10,15 @@ export class User {
     public readonly email: string,
     public gender: string,
     public status: UserStatus,
+    public role: UserRole,
     createdAt?: Date,
     updatedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
     this._updatedAt = updatedAt ?? new Date();
+    this.gender = gender ?? 'null';
+    this.status = status ?? UserStatus.PENDING;
+    this.role = role ?? UserRole.EMPLOYEE;
   }
 
   get updatedAt(): Date {
@@ -23,6 +28,13 @@ export class User {
   updateGender(gender: string): void {
     if (this.gender !== gender) {
       this.gender = gender;
+      this.touch();
+    }
+  }
+
+  updateUserRole(role: UserRole): void {
+    if (this.role !== role) {
+      this.role = role;
       this.touch();
     }
   }

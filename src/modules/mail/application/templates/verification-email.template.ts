@@ -1,6 +1,7 @@
 export interface VerificationEmailParams {
   userName: string;
   verificationLink: string;
+  expiresInHours: number;
 }
 
 export class VerificationEmailTemplate {
@@ -9,7 +10,7 @@ export class VerificationEmailTemplate {
   }
 
   static getHtml(params: VerificationEmailParams): string {
-    const { userName, verificationLink } = params;
+    const { userName, verificationLink, expiresInHours } = params;
 
     return `
       <!DOCTYPE html>
@@ -89,7 +90,11 @@ export class VerificationEmailTemplate {
             <p>Or copy and paste this link into your browser:</p>
             <p class="link">${verificationLink}</p>
             
-            <p><strong>This link will expire in 24 hours.</strong></p>
+            <p>
+              <strong>
+                This link will expire in ${expiresInHours} hours.
+              </strong>
+            </p>
             
             <p>If you didn't create an account, you can safely ignore this email.</p>
             

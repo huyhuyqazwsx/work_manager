@@ -1,28 +1,32 @@
-import { User } from '../../../../../entities/user/user.entity';
-import { UserStatus } from '../../../../auth/domain/enum/user-status.enum';
-import { Prisma } from '@prisma/client';
+import { UserAuth } from '../../../../../domain/entities/user/userAuth.entity';
+import { UserStatus } from '../../../domain/enum/user-status.enum';
 import { User as PrismaUser } from '@prisma/client';
+import { UserRole } from '../../../domain/enum/user-role.enum';
 
 export class UserMapper {
-  static toDomain(raw: PrismaUser): User {
-    return new User(
+  static toDomain(raw: PrismaUser): UserAuth {
+    return new UserAuth(
       raw.id,
       raw.email,
       raw.gender,
       raw.status as UserStatus,
+      raw.role as UserRole,
       raw.createdAt,
       raw.updatedAt,
     );
   }
 
-  static toPersistence(user: User): Prisma.UserCreateInput {
+  static toPersistence(
+    user: UserAuth | Partial<UserAuth>,
+  ): Record<string, any> {
     return {
-      id: user.id,
-      email: user.email,
-      status: user.status,
-      gender: user.gender,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      ...(user.id && { id: user.id }),
+      ...(user.email && { email: user.email }),
+      ...(user.status && { status: user.status }),
+      ...(user.gender && { gender: user.gender }),
+      ...(user.role && { role: user.role }),
+      ...(user.createdAt && { createdAt: user.createdAt }),
+      ...(user.updatedAt && { updatedAt: user.updatedAt }),
     };
   }
 }

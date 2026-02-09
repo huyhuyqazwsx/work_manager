@@ -1,8 +1,17 @@
-import { User } from '../../../../entities/user/user.entity';
+import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { InviteUsersResult } from '../dto/invite-user-result.dto';
 
 export interface IUserService {
-  findUserById(id: string): Promise<User | null>;
-  findUserByEmail(email: string): Promise<User | null>;
-  createUserFromOAuth(user: User): Promise<void>;
-  // getUserProfile(userId: string): Promise<UserResponseDto>;
+  findUserById(id: string): Promise<UserAuth | null>;
+  findUserByEmail(email: string): Promise<UserAuth | null>;
+  findAllUsers(): Promise<UserAuth[]>;
+  createUser(user: UserAuth): Promise<void>;
+  createUserFromOAuth(user: UserAuth): Promise<void>;
+  updateUser(id: string, user: Partial<UserAuth>): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+
+  inviteUsers(emails: string[]): Promise<InviteUsersResult>;
+  createPendingUserAndSendInvite(email: string): Promise<void>;
+  resendInvite(email: string): Promise<void>;
+  verifyEmail(email: string, token: string): Promise<void>;
 }

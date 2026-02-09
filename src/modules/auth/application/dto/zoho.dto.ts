@@ -1,3 +1,5 @@
+import { UserStatus } from '../../../user/domain/enum/user-status.enum';
+
 export interface ZohoTokenResponse {
   access_token: string;
   scope: string;
@@ -28,4 +30,9 @@ export interface ZohoUserProfilePayload {
   name: string;
   first_name: string;
   email: string;
+}
+
+export interface ResponseHandleZoho {
+  user_status: UserStatus | null;
+  accessToken?: string;
 }

@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import * as authServiceInterface from '../../application/interfaces/auth.service.interface';
 import { AuthGuard } from '@nestjs/passport';
-import { ZohoUserProfilePayload } from '../../application/dto/zoho.dto';
+import {
+  ResponseHandleZoho,
+  ZohoUserProfilePayload,
+} from '../../application/dto/zoho.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 type ZohoRequest = Request & {
@@ -30,15 +33,13 @@ export class AuthController {
 
   @Get('zoho/callback')
   @UseGuards(AuthGuard('zoho'))
-  async zohoCallback(@Req() req: ZohoRequest): Promise<{ status: string }> {
+  async zohoCallback(@Req() req: ZohoRequest): Promise<ResponseHandleZoho> {
     const zohoUser = req.user as ZohoUserProfilePayload;
 
     if (!zohoUser?.email) {
       throw new UnauthorizedException();
     }
 
-    await this.authService.handleZohoLogin(zohoUser);
-
-    return { status: 'OK' };
+    return await this.authService.handleZohoLogin(zohoUser);
   }
 }
