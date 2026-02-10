@@ -1,6 +1,6 @@
 export default () => ({
   app: {
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4200',
+    frontendUrl: process.env.FE_URL || 'https://localhost:5173',
   },
 
   zoho: {

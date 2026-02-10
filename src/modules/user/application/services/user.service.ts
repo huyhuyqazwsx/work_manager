@@ -11,11 +11,11 @@ import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
 import * as userRepositoryInterface from '../../domain/repositories/user.repository.interface';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { UserStatus } from '../../domain/enum/user-status.enum';
+import { UserStatus } from '../../../../domain/enum/user-status.enum';
 import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserRole } from '../../domain/enum/user-role.enum';
+import { UserRole } from '../../../../domain/enum/user-role.enum';
 
 @Injectable()
 export class UserService implements IUserService {
@@ -79,13 +79,16 @@ export class UserService implements IUserService {
   }
 
   //Gửi xác thực cho email
-  async createPendingUserAndSendInvite(email: string) {
+  async createPendingUserAndSendInvite(
+    email: string,
+    role: UserRole = UserRole.EMPLOYEE,
+  ) {
     const user = new UserAuth(
       randomUUID(),
       email,
-      '',
+      'null',
       UserStatus.PENDING,
-      UserRole.EMPLOYEE,
+      role,
     );
 
     await this.userRepository.save(user);

@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { MailModule } from './modules/mail/mail.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
+import { InviteModule } from './modules/invite/invite.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CacheModule } from './infrastructure/cache/cache.module';
     AuthModule,
     UserModule,
     MailModule,
+    InviteModule,
   ],
   controllers: [AppController],
   providers: [AppService],

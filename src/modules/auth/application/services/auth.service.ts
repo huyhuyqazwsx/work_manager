@@ -20,7 +20,7 @@ export class AuthService implements IAuthService {
     const user = await this.userService.findUserByEmail(zohoUser.email);
 
     if (!user) {
-      return { user_status: null };
+      return { user_status: null, email: null };
     } else {
       if (user.isActive()) {
         const update = this.buildOAuthProfileUpdate(user, zohoUser);
@@ -31,14 +31,21 @@ export class AuthService implements IAuthService {
 
         return {
           user_status: user.status,
-          accessToken: '',
+          email: user.email,
+          accessToken: 'FAKE-${user.id}',
+        };
+      } else if (user.isPending()) {
+        return {
+          user_status: user.status,
+          email: user.email,
+        };
+      } else {
+        return {
+          user_status: user.status,
+          email: user.email,
         };
       }
     }
-
-    return {
-      user_status: user.status,
-    };
   }
 
   private buildOAuthProfileUpdate(

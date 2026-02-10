@@ -1,5 +1,5 @@
-import { UserStatus } from '../../../modules/user/domain/enum/user-status.enum';
-import { UserRole } from '../../../modules/user/domain/enum/user-role.enum';
+import { UserStatus } from '../../enum/user-status.enum';
+import { UserRole } from '../../enum/user-role.enum';
 
 export class UserAuth {
   public readonly createdAt: Date;

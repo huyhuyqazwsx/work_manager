@@ -1,7 +1,7 @@
 import { UserAuth } from '../../../../../domain/entities/user/userAuth.entity';
-import { UserStatus } from '../../../domain/enum/user-status.enum';
+import { UserStatus } from '../../../../../domain/enum/user-status.enum';
 import { User as PrismaUser } from '@prisma/client';
-import { UserRole } from '../../../domain/enum/user-role.enum';
+import { UserRole } from '../../../../../domain/enum/user-role.enum';
 
 export class UserMapper {
   static toDomain(raw: PrismaUser): UserAuth {
