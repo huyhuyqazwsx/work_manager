@@ -1,5 +1,4 @@
-import { UserStatus } from '../../enum/user-status.enum';
-import { UserRole } from '../../enum/user-role.enum';
+import { UserRole, UserStatus } from '../enum/enum';
 
 export class UserAuth {
   public readonly createdAt: Date;
@@ -8,21 +7,29 @@ export class UserAuth {
   constructor(
     public readonly id: string,
     public readonly email: string,
+    public fullName: string,
     public gender: string,
     public status: UserStatus,
     public role: UserRole,
+    public hireDate: Date,
     createdAt?: Date,
     updatedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
     this._updatedAt = updatedAt ?? new Date();
-    this.gender = gender ?? 'null';
     this.status = status ?? UserStatus.PENDING;
     this.role = role ?? UserRole.EMPLOYEE;
   }
 
   get updatedAt(): Date {
     return this._updatedAt;
+  }
+
+  updateFullName(fullName: string): void {
+    if (this.fullName !== fullName) {
+      this.fullName = fullName;
+      this.touch();
+    }
   }
 
   updateGender(gender: string): void {
@@ -32,7 +39,7 @@ export class UserAuth {
     }
   }
 
-  updateUserRole(role: UserRole): void {
+  updateRole(role: UserRole): void {
     if (this.role !== role) {
       this.role = role;
       this.touch();
@@ -70,6 +77,40 @@ export class UserAuth {
 
   isInactive(): boolean {
     return this.status === UserStatus.INACTIVE;
+  }
+
+  isEmployee(): boolean {
+    return this.role === UserRole.EMPLOYEE;
+  }
+
+  isDepartmentHead(): boolean {
+    return this.role === UserRole.DEPARTMENT_HEAD;
+  }
+
+  isHR(): boolean {
+    return this.role === UserRole.HR;
+  }
+
+  isDirector(): boolean {
+    return this.role === UserRole.DIRECTOR;
+  }
+
+  canApproveLeave(): boolean {
+    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.DIRECTOR].includes(
+      this.role,
+    );
+  }
+
+  canApproveOT(): boolean {
+    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.DIRECTOR].includes(
+      this.role,
+    );
+  }
+
+  getYearsOfService(): number {
+    const now = new Date();
+    const diffTime = now.getTime() - this.hireDate.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 365));
   }
 
   private touch(): void {

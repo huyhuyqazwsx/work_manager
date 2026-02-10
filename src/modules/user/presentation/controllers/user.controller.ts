@@ -11,7 +11,7 @@ import {
   Put,
 } from '@nestjs/common';
 import * as userServiceInterface from '../../application/interfaces/user.service.interface';
-import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { InviteUsersDto } from '../../application/dto/invite-users.dto';
 import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';

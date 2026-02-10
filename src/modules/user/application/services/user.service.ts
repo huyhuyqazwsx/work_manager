@@ -7,15 +7,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { IUserService } from '../interfaces/user.service.interface';
-import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import * as userRepositoryInterface from '../../domain/repositories/user.repository.interface';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { UserStatus } from '../../../../domain/enum/user-status.enum';
 import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserRole } from '../../../../domain/enum/user-role.enum';
+import { UserRole, UserStatus } from '../../../../domain/enum/enum';
 
 @Injectable()
 export class UserService implements IUserService {
@@ -87,8 +86,10 @@ export class UserService implements IUserService {
       randomUUID(),
       email,
       'null',
+      'null',
       UserStatus.PENDING,
       role,
+      new Date(),
     );
 
     await this.userRepository.save(user);

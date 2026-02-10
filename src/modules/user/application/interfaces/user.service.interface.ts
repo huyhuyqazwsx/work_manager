@@ -1,6 +1,6 @@
-import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
-import { UserRole } from '../../../../domain/enum/user-role.enum';
+import { UserRole } from '../../../../domain/enum/enum';
 
 export interface IUserService {
   findUserById(id: string): Promise<UserAuth | null>;

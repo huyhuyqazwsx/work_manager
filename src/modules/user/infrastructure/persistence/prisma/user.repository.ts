@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { User as PrismaUser } from '@prisma/client';
 import { UserMapper } from './user.mapper';
-import { UserAuth } from '../../../../../domain/entities/user/userAuth.entity';
+import { UserAuth } from '../../../../../domain/entities/userAuth.entity';
 import { BasePrismaRepository } from '../../../../../infrastructure/repository/base/base-prisma.repository';
 import { IUserRepository } from '../../../domain/repositories/user.repository.interface';
 import { PrismaService } from '../../../../../infrastructure/database/prisma/PrismaService';

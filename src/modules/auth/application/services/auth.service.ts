@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { IAuthService } from '../interfaces/auth.service.interface';
 import { ResponseHandleZoho, ZohoUserProfilePayload } from '../dto/zoho.dto';
-import { UserAuth } from '../../../../domain/entities/user/userAuth.entity';
+import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
 
 @Injectable()
