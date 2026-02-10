@@ -1,4 +1,4 @@
-import { UserRole } from '../enum/user-role.enum';
+import { UserRole } from '../enum/enum';
 
 export interface InviteExcelRow {
   email: string;

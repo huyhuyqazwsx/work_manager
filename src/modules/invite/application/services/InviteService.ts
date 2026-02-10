@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Inject } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 
 import {
@@ -11,9 +6,9 @@ import {
   InviteImportResult,
 } from '../../../../domain/type/invite.types';
 
-import { UserRole } from '../../../../domain/enum/user-role.enum';
 import { IInviteService } from '../interface/IInviteService';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
+import { UserRole } from '../../../../domain/enum/enum';
 
 @Injectable()
 export class InviteService implements IInviteService {
@@ -31,7 +26,6 @@ export class InviteService implements IInviteService {
       throw new BadRequestException('File is required');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const sheet = workbook.Sheets['Invites'];
 
