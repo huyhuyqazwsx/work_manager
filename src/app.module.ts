@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
@@ -9,6 +8,7 @@ import configuration from './config/configuration';
 import { MailModule } from './modules/mail/mail.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
 import { InviteModule } from './modules/invite/invite.module';
+import { DepartmentModule } from './modules/department/department.module';
 
 @Module({
   imports: [
@@ -22,8 +22,8 @@ import { InviteModule } from './modules/invite/invite.module';
     UserModule,
     MailModule,
     InviteModule,
+    DepartmentModule,
   ],
-  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}

@@ -7,6 +7,7 @@ export interface IBaseMapper<Domain, Persistence> {
 
 type PrismaDelegate<T> = {
   findUnique(args: { where: { id: string } }): Promise<T | null>;
+  findFirst(args: { where: any }): Promise<T | null>;
   findMany(): Promise<T[]>;
   create(args: { data: any }): Promise<T>;
   update(args: { where: { id: string }; data: any }): Promise<T>;

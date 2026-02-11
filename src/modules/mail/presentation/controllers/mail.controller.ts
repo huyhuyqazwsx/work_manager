@@ -16,7 +16,7 @@ export class MailController {
   @ApiOperation({ summary: 'Send verification email' })
   @ApiResponse({ status: 200, description: 'Email sent successfully' })
   async sendVerification(@Body() dto: SendVerificationMailDto) {
-    await this.mailService.sendVerificationEmail(
+    this.mailService.sendVerificationEmail(
       dto.email,
       dto.verificationToken,
     );

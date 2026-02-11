@@ -1,24 +1,22 @@
 import {
+  BadRequestException,
   Controller,
-  Post,
   Get,
+  Inject,
+  Post,
+  Res,
   UploadedFile,
   UseInterceptors,
-  Inject,
-  Res,
-  BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiBearerAuth,
-  ApiBody,
+  ApiBearerAuth, ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import express from 'express';
-import * as XLSX from 'xlsx';
 import * as IInviteService from '../../application/interface/IInviteService';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InviteImportResult } from '../../../../domain/type/invite.types';
 
 @ApiTags('Invites')
@@ -30,27 +28,10 @@ export class InviteController {
     private readonly inviteService: IInviteService.IInviteService,
   ) {}
 
-  /* ================= DOWNLOAD EXCEL TEMPLATE ================= */
-
   @Get('template')
   @ApiOperation({ summary: 'Download invite Excel template' })
-  downloadTemplate(@Res() res: express.Response) {
-    const workbook = XLSX.utils.book_new();
-
-    const worksheet = XLSX.utils.json_to_sheet([
-      {
-        email: 'user@company.com',
-        role: 'EMPLOYEE',
-      },
-    ]);
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Invites');
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const buffer = XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-    });
+  async downloadTemplate(@Res() res: express.Response) {
+    const buffer = await this.inviteService.inviteTemplateDownload();
 
     res.setHeader(
       'Content-Type',
@@ -64,10 +45,8 @@ export class InviteController {
     res.send(buffer);
   }
 
-  /* ================= IMPORT EXCEL ================= */
-
   @Post('import')
-  @ApiOperation({ summary: 'Import invite list from Excel' })
+  @ApiOperation({ summary: 'Import invite list from Excel (.xlsx)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -87,6 +66,11 @@ export class InviteController {
   ): Promise<InviteImportResult> {
     if (!file) {
       throw new BadRequestException('File is required');
+    }
+
+    // Optional: quick mime / extension guard
+    if (!file.originalname.endsWith('.xlsx')) {
+      throw new BadRequestException('Only .xlsx files are supported');
     }
 
     return this.inviteService.importFromExcel(file);

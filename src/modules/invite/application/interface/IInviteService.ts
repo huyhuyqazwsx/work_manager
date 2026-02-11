@@ -1,10 +1,7 @@
-import {
-  InviteExcelRow,
-  InviteImportResult,
-} from '../../../../domain/type/invite.types';
+import { InviteImportResult } from '../../../../domain/type/invite.types';
 
 export interface IInviteService {
-  importFromExcel(file: Express.Multer.File): Promise<InviteImportResult>;
+  inviteTemplateDownload(): Promise<Buffer>;
 
-  validateRow(row: any): InviteExcelRow;
+  importFromExcel(file: Express.Multer.File): Promise<InviteImportResult>;
 }
