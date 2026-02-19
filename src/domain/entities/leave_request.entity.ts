@@ -2,7 +2,7 @@ import { LeaveRequestStatus } from '../enum/enum';
 
 export class LeaveRequest {
   public readonly createdAt: Date;
-  private _approvedAt?: Date;
+  public approvedAt?: Date | null;
 
   constructor(
     public readonly id: string,
@@ -15,16 +15,12 @@ export class LeaveRequest {
     public readonly createdBy: string,
     public approvedBy: string | null,
     createdAt?: Date,
-    approvedAt?: Date,
+    approvedAt?: Date | null,
   ) {
     this.createdAt = createdAt ?? new Date();
-    this._approvedAt = approvedAt;
+    this.approvedAt = approvedAt ?? null;
     this.status = status ?? LeaveRequestStatus.DRAFT;
     this.approvedBy = approvedBy ?? null;
-  }
-
-  get approvedAt(): Date | undefined {
-    return this._approvedAt;
   }
 
   updateReason(reason: string): void {
@@ -43,7 +39,7 @@ export class LeaveRequest {
     if (this.isPending()) {
       this.status = LeaveRequestStatus.APPROVED;
       this.approvedBy = approvedBy;
-      this._approvedAt = new Date();
+      this.approvedAt = new Date();
     }
   }
 
@@ -51,7 +47,7 @@ export class LeaveRequest {
     if (this.isPending()) {
       this.status = LeaveRequestStatus.REJECTED;
       this.approvedBy = approvedBy;
-      this._approvedAt = new Date();
+      this.approvedAt = new Date();
     }
   }
 

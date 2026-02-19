@@ -1,4 +1,5 @@
 import { IBaseRepository } from '../../../domain/repositories/base.repository';
+import { Prisma } from '@prisma/client';
 
 export interface IBaseMapper<Domain, Persistence> {
   toDomain(raw: Persistence): Domain;
@@ -40,21 +41,55 @@ export abstract class BasePrismaRepository<
   }
 
   async save(entity: Domain): Promise<void> {
-    const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
-    await this.prismaModel.create({ data });
+    try {
+      const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
+
+      await this.prismaModel.create({ data });
+    } catch (error: any) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new Error('Unique constraint violation');
+        }
+
+        if (error.code === 'P2003') {
+          throw new Error('Foreign key constraint failed');
+        }
+      }
+
+      throw error;
+    }
   }
 
   async update(id: string, entity: Partial<Domain>): Promise<void> {
-    const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
-    await this.prismaModel.update({
-      where: { id },
-      data,
-    });
+    try {
+      const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
+
+      await this.prismaModel.update({
+        where: { id },
+        data,
+      });
+    } catch (error: any) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new Error('Record not found');
+        }
+      }
+      throw error;
+    }
   }
 
   async delete(id: string): Promise<void> {
-    await this.prismaModel.delete({
-      where: { id },
-    });
+    try {
+      await this.prismaModel.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new Error('Record not found');
+        }
+      }
+      throw error;
+    }
   }
 }

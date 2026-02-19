@@ -2,7 +2,7 @@ import { UserRole, UserStatus } from '../enum/enum';
 
 export class UserAuth {
   public readonly createdAt: Date;
-  private _updatedAt: Date;
+  public updatedAt: Date;
 
   constructor(
     public readonly id: string,
@@ -16,13 +16,10 @@ export class UserAuth {
     updatedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
-    this._updatedAt = updatedAt ?? new Date();
+    this.updatedAt = updatedAt ?? new Date();
     this.status = status ?? UserStatus.PENDING;
     this.role = role ?? UserRole.EMPLOYEE;
-  }
-
-  get updatedAt(): Date {
-    return this._updatedAt;
+    this.hireDate = hireDate ?? new Date();
   }
 
   updateFullName(fullName: string): void {
@@ -91,18 +88,18 @@ export class UserAuth {
     return this.role === UserRole.HR;
   }
 
-  isDirector(): boolean {
-    return this.role === UserRole.DIRECTOR;
+  isBOD(): boolean {
+    return this.role === UserRole.BOD;
   }
 
   canApproveLeave(): boolean {
-    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.DIRECTOR].includes(
+    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.BOD].includes(
       this.role,
     );
   }
 
   canApproveOT(): boolean {
-    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.DIRECTOR].includes(
+    return [UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.BOD].includes(
       this.role,
     );
   }
@@ -114,6 +111,6 @@ export class UserAuth {
   }
 
   private touch(): void {
-    this._updatedAt = new Date();
+    this.updatedAt = new Date();
   }
 }

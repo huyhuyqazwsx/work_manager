@@ -7,7 +7,7 @@ import { PrismaDepartmentRepository } from './infrastructure/Repository/departme
   providers: [
     {
       provide: 'IDepartmentService',
-      useValue: DepartmentService,
+      useClass: DepartmentService,
     },
     {
       provide: 'IDepartmentRepository',

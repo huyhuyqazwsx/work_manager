@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import * as userServiceInterface from '../../application/interfaces/user.service.interface';
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
-import { InviteUsersDto } from '../../application/dto/invite-users.dto';
 import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';
 
@@ -53,16 +52,6 @@ export class UserController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string): Promise<void> {
     await this.userService.deleteUser(id);
-  }
-
-  @Post('invite')
-  async inviteUsers(@Body() dto: InviteUsersDto) {
-    const result = await this.userService.inviteUsers(dto.emails);
-
-    return {
-      success: true,
-      data: result,
-    };
   }
 
   @Post('resend-invite')

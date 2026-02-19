@@ -9,15 +9,17 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth, ApiBody,
+  ApiBearerAuth,
+  ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+
 import express from 'express';
 import * as IInviteService from '../../application/interface/IInviteService';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { InviteImportResult } from '../../../../domain/type/invite.types';
+import { InviteImportResponse } from '../../application/dto/invite-import.response';
 
 @ApiTags('Invites')
 @ApiBearerAuth()
@@ -30,8 +32,8 @@ export class InviteController {
 
   @Get('template')
   @ApiOperation({ summary: 'Download invite Excel template' })
-  async downloadTemplate(@Res() res: express.Response) {
-    const buffer = await this.inviteService.inviteTemplateDownload();
+  downloadTemplate(@Res() res: express.Response) {
+    const buffer = this.inviteService.inviteTemplateDownload();
 
     res.setHeader(
       'Content-Type',
@@ -46,7 +48,6 @@ export class InviteController {
   }
 
   @Post('import')
-  @ApiOperation({ summary: 'Import invite list from Excel (.xlsx)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -60,15 +61,21 @@ export class InviteController {
       required: ['file'],
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    }),
+  )
   async importInviteExcel(
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<InviteImportResult> {
+  ): Promise<InviteImportResponse> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
 
-    // Optional: quick mime / extension guard
+    //Check
     if (!file.originalname.endsWith('.xlsx')) {
       throw new BadRequestException('Only .xlsx files are supported');
     }

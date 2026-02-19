@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { IBaseCrudService } from '../../domain/crudservice/base-crud.service.interface';
 
 export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
@@ -11,8 +12,14 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
     },
   ) {}
 
-  async findById(id: string): Promise<T | null> {
-    return this.repository.findById(id);
+  async findById(id: string): Promise<T> {
+    const entity = await this.repository.findById(id);
+
+    if (!entity) {
+      throw new NotFoundException('Entity not found');
+    }
+
+    return entity;
   }
 
   async findAll(): Promise<T[]> {
@@ -20,14 +27,30 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
   }
 
   async create(entity: T): Promise<void> {
+    if (!entity) {
+      throw new Error('Entity is required');
+    }
+
     await this.repository.save(entity);
   }
 
   async update(id: string, entity: Partial<T>): Promise<void> {
+    const existing = await this.repository.findById(id);
+
+    if (!existing) {
+      throw new NotFoundException('Entity not found');
+    }
+
     await this.repository.update(id, entity);
   }
 
   async delete(id: string): Promise<void> {
+    const existing = await this.repository.findById(id);
+
+    if (!existing) {
+      throw new NotFoundException('Entity not found');
+    }
+
     await this.repository.delete(id);
   }
 }

@@ -17,12 +17,12 @@ export class CreateDepartmentDto {
   code: string;
 
   @ApiPropertyOptional({
-    example: 'manager-user-id',
+    example: null,
     default: '',
   })
   @IsOptional()
   @IsString()
-  managerId: string = '';
+  managerId?: string | null;
 
   @ApiPropertyOptional({
     example: true,

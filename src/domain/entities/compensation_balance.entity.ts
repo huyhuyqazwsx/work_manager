@@ -1,5 +1,5 @@
 export class CompensationBalance {
-  private _updatedAt: Date;
+  public updatedAt: Date;
 
   constructor(
     public readonly id: string,
@@ -7,12 +7,8 @@ export class CompensationBalance {
     public hours: number,
     updatedAt?: Date,
   ) {
-    this._updatedAt = updatedAt ?? new Date();
+    this.updatedAt = updatedAt ?? new Date();
     this.hours = hours ?? 0;
-  }
-
-  get updatedAt(): Date {
-    return this._updatedAt;
   }
 
   addHours(hours: number): void {
@@ -59,6 +55,6 @@ export class CompensationBalance {
   }
 
   private touch(): void {
-    this._updatedAt = new Date();
+    this.updatedAt = new Date();
   }
 }

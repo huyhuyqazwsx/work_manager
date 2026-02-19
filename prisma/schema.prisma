@@ -22,33 +22,17 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  managedDepartments    Department[]           @relation("DepartmentManager")
-  departmentEmployees   DepartmentEmployee[]
-  leaveRequestsCreated  LeaveRequest[]         @relation("LeaveRequestCreator")
-  leaveRequestsApproved LeaveRequest[]         @relation("LeaveRequestApprover")
-  overtimeRequests      OvertimeRequest[]      @relation("OvertimeRequestCreator")
-  overtimeApprovals     OvertimeRequest[]      @relation("OvertimeRequestApprover")
-  compensationBalance   CompensationBalance?
-  attendances           Attendance[]
-  holidaysCreated       Holiday[]
-
   @@map("users")
 }
 
 model Department {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String
-  code       String   @unique
-  managerId  String   @db.Uuid
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relations
-  manager             User                 @relation("DepartmentManager", fields: [managerId], references: [id])
-  departmentEmployees DepartmentEmployee[]
-  policyConditions    PolicyCondition[]
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  code      String   @unique
+  managerId String?  @db.Uuid
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("departments")
 }
@@ -56,10 +40,6 @@ model Department {
 model DepartmentEmployee {
   departmentId String @db.Uuid
   employeeId   String @db.Uuid
-
-  // Relations
-  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  employee   User       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@id([departmentId, employeeId])
   @@map("department_employees")
@@ -70,17 +50,12 @@ model DepartmentEmployee {
 // ============================================
 
 model LeaveType {
-  id                   String   @id @default(uuid()) @db.Uuid
-  code                 String   @unique
-  name                 String
-  isPaid               Boolean  @default(false)
-  deductCompensation   Boolean  @default(false)
-  createdAt            DateTime @default(now())
-
-  // Relations
-  leaveRequests     LeaveRequest[]
-  policies          Policy[]
-  leavePolicyValues LeavePolicyValue[]
+  id                 String   @id @default(uuid()) @db.Uuid
+  code               String   @unique
+  name               String
+  isPaid             Boolean  @default(false)
+  deductCompensation Boolean  @default(false)
+  createdAt          DateTime @default(now())
 
   @@map("leave_types")
 }
@@ -98,11 +73,6 @@ model LeaveRequest {
   approvedBy  String?   @db.Uuid
   approvedAt  DateTime?
 
-  // Relations
-  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
-  creator   User      @relation("LeaveRequestCreator", fields: [createdBy], references: [id])
-  approver  User?     @relation("LeaveRequestApprover", fields: [approvedBy], references: [id])
-
   @@index([createdBy])
   @@index([status])
   @@index([fromDate, toDate])
@@ -114,16 +84,12 @@ model LeaveRequest {
 // ============================================
 
 model OvertimeType {
-  id                  String   @id @default(uuid()) @db.Uuid
-  code                String   @unique
-  name                String
-  defaultMultiplier   Float
-  isCompensation      Boolean  @default(false)
-  createdAt           DateTime @default(now())
-
-  // Relations
-  overtimeRequests OvertimeRequest[]
-  otPolicyValues   OTPolicyValue[]
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique
+  name              String
+  defaultMultiplier Float
+  isCompensation    Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@map("overtime_types")
 }
@@ -143,11 +109,6 @@ model OvertimeRequest {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  // Relations
-  user     User         @relation("OvertimeRequestCreator", fields: [userId], references: [id])
-  otType   OvertimeType @relation(fields: [otTypeId], references: [id])
-  approver User?        @relation("OvertimeRequestApprover", fields: [approvedBy], references: [id])
-
   @@index([userId])
   @@index([workDate])
   @@index([status])
@@ -159,9 +120,6 @@ model CompensationBalance {
   userId    String   @unique @db.Uuid
   hours     Float    @default(0)
   updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("compensation_balances")
 }
@@ -182,9 +140,6 @@ model Attendance {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  // Relations
-  user User @relation(fields: [userId], references: [id])
-
   @@unique([userId, workDate])
   @@index([userId, workDate])
   @@map("attendances")
@@ -204,9 +159,6 @@ model Holiday {
   createdBy   String   @db.Uuid
   createdAt   DateTime @default(now())
 
-  // Relations
-  creator User @relation(fields: [createdBy], references: [id])
-
   @@index([date])
   @@map("holidays")
 }
@@ -223,12 +175,6 @@ model Policy {
   isActive    Boolean @default(true)
   leaveTypeId String? @db.Uuid
 
-  // Relations
-  leaveType         LeaveType?          @relation(fields: [leaveTypeId], references: [id])
-  conditions        PolicyCondition[]
-  leavePolicyValues LeavePolicyValue[]
-  otPolicyValues    OTPolicyValue[]
-
   @@map("policies")
 }
 
@@ -239,10 +185,6 @@ model PolicyCondition {
   maxYear      Int?
   departmentId String? @db.Uuid
   role         String? // EMPLOYEE | DEPARTMENT_HEAD | HR | DIRECTOR
-
-  // Relations
-  policy     Policy      @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  department Department? @relation(fields: [departmentId], references: [id])
 
   @@map("policy_conditions")
 }
@@ -255,10 +197,6 @@ model LeavePolicyValue {
   minimumNoticeDays    Int
   allowNegativeBalance Boolean @default(false)
 
-  // Relations
-  policy    Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
-
   @@map("leave_policy_values")
 }
 
@@ -268,10 +206,6 @@ model OTPolicyValue {
   otTypeId         String @db.Uuid
   maxHoursPerDay   Float
   salaryMultiplier Float
-
-  // Relations
-  policy Policy       @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  otType OvertimeType @relation(fields: [otTypeId], references: [id])
 
   @@map("ot_policy_values")
 }

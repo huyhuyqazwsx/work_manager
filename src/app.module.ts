@@ -9,6 +9,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
 import { InviteModule } from './modules/invite/invite.module';
 import { DepartmentModule } from './modules/department/department.module';
+import { LeaveModule } from './modules/leave/leave.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DepartmentModule } from './modules/department/department.module';
     MailModule,
     InviteModule,
     DepartmentModule,
+    LeaveModule,
   ],
   providers: [AppService],
 })

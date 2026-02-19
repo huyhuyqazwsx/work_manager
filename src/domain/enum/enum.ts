@@ -8,7 +8,7 @@ export enum UserRole {
   EMPLOYEE = 'EMPLOYEE',
   DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
   HR = 'HR',
-  DIRECTOR = 'DIRECTOR',
+  BOD = 'BOD',
 }
 
 export enum Gender {

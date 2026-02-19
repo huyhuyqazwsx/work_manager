@@ -2,8 +2,8 @@ import { OvertimeRequestStatus } from '../enum/enum';
 
 export class OvertimeRequest {
   public readonly createdAt: Date;
-  private _updatedAt: Date;
-  private _approvedAt?: Date;
+  public updatedAt: Date;
+  public approvedAt?: Date;
 
   constructor(
     public readonly id: string,
@@ -21,18 +21,10 @@ export class OvertimeRequest {
     approvedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
-    this._updatedAt = updatedAt ?? new Date();
-    this._approvedAt = approvedAt;
+    this.updatedAt = updatedAt ?? new Date();
+    this.approvedAt = approvedAt;
     this.status = status ?? OvertimeRequestStatus.DRAFT;
     this.approvedBy = approvedBy ?? null;
-  }
-
-  get updatedAt(): Date {
-    return this._updatedAt;
-  }
-
-  get approvedAt(): Date | undefined {
-    return this._approvedAt;
   }
 
   updateReason(reason: string): void {
@@ -53,7 +45,7 @@ export class OvertimeRequest {
     if (this.isPending()) {
       this.status = OvertimeRequestStatus.APPROVED;
       this.approvedBy = approvedBy;
-      this._approvedAt = new Date();
+      this.approvedAt = new Date();
       this.touch();
     }
   }
@@ -62,7 +54,7 @@ export class OvertimeRequest {
     if (this.isPending()) {
       this.status = OvertimeRequestStatus.REJECTED;
       this.approvedBy = approvedBy;
-      this._approvedAt = new Date();
+      this.approvedAt = new Date();
       this.touch();
     }
   }
@@ -122,6 +114,6 @@ export class OvertimeRequest {
   }
 
   private touch(): void {
-    this._updatedAt = new Date();
+    this.updatedAt = new Date();
   }
 }

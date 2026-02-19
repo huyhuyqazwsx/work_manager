@@ -1,6 +1,7 @@
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { UserRole } from '../../../../domain/enum/enum';
+import { InviteForm } from '../../../../domain/type/invite.types';
 
 export interface IUserService {
   findUserById(id: string): Promise<UserAuth | null>;
@@ -11,7 +12,7 @@ export interface IUserService {
   updateUser(id: string, user: Partial<UserAuth>): Promise<void>;
   deleteUser(id: string): Promise<void>;
 
-  inviteUsers(emails: string[]): Promise<InviteUsersResult>;
+  inviteUsersFromExcel(invites: InviteForm[]): Promise<InviteUsersResult>;
   createPendingUserAndSendInvite(email: string, role: UserRole): Promise<void>;
   resendInvite(email: string): Promise<void>;
   verifyEmail(email: string, token: string): Promise<void>;

@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
 import { UserRole, UserStatus } from '../../../../domain/enum/enum';
+import { InviteForm } from '../../../../domain/type/invite.types';
 
 @Injectable()
 export class UserService implements IUserService {
@@ -81,19 +82,33 @@ export class UserService implements IUserService {
   async createPendingUserAndSendInvite(
     email: string,
     role: UserRole = UserRole.EMPLOYEE,
-  ) {
+    hireDate?: string,
+    departmentCode?: string,
+  ): Promise<void> {
+    let hireDateObj = new Date();
+
+    if (hireDate) {
+      // "16/2/2026" → [16, 2, 2026]
+      const parts = hireDate.split('/');
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+
+      // month - 1 vì JavaScript Date dùng 0-11 cho tháng
+      hireDateObj = new Date(year, month - 1, day);
+    }
+
     const user = new UserAuth(
       randomUUID(),
       email,
-      'null',
-      'null',
+      'null', // fullName
+      'null', // gender
       UserStatus.PENDING,
       role,
-      new Date(),
+      hireDateObj,
     );
 
     await this.userRepository.save(user);
-
     await this.resendInvite(email);
   }
 
@@ -108,35 +123,42 @@ export class UserService implements IUserService {
     await this.mailService.sendVerificationEmail(email, verificationToken);
   }
 
-  async inviteUsers(emails: string[]): Promise<InviteUsersResult> {
+  async inviteUsersFromExcel(
+    invites: InviteForm[],
+  ): Promise<InviteUsersResult> {
     const result: InviteUsersResult = {
       PENDING: [],
       ACTIVE: [],
       INACTIVE: [],
     };
 
-    for (const email of emails) {
-      const user = await this.userRepository.findByEmail(email);
+    for (const invite of invites) {
+      const user = await this.userRepository.findByEmail(invite.email);
 
       if (!user) {
-        await this.createPendingUserAndSendInvite(email);
-        result.PENDING.push(email);
+        await this.createPendingUserAndSendInvite(
+          invite.email,
+          invite.role,
+          invite.hireDate,
+          invite.departmentCode,
+        );
+        result.PENDING.push(invite.email);
         continue;
       }
 
       if (user.isPending()) {
-        await this.resendInvite(email);
-        result.PENDING.push(email);
+        await this.resendInvite(invite.email);
+        result.PENDING.push(invite.email);
         continue;
       }
 
       if (user.isActive()) {
-        result.ACTIVE.push(email);
+        result.ACTIVE.push(invite.email);
         continue;
       }
 
       if (user.isInactive()) {
-        result.INACTIVE.push(email);
+        result.INACTIVE.push(invite.email);
       }
     }
 

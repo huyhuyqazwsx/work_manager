@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import 'reflect-metadata';
 import * as fs from 'node:fs';
+import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync('./secrets/key.pem'),
@@ -20,6 +21,15 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      disableErrorMessages: false,
+    }),
+  );
+
   const config = new DocumentBuilder()
     .setTitle('Work Manager API')
     .setDescription('API documentation for Work Manager')
@@ -29,8 +39,8 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log(`App running on port ${port}`);
+  await app.listen(3000);
+  console.log(`Application running on: https://localhost:3000`);
+  console.log(`Swagger UI: https://localhost:3000/api`);
 }
 void bootstrap();

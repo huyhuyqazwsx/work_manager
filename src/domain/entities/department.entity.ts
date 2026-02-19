@@ -1,23 +1,19 @@
 export class Department {
   public readonly createdAt: Date;
-  private _updatedAt: Date;
+  public updatedAt: Date; // ✅ Đổi từ private _updatedAt thành public
 
   constructor(
     public readonly id: string,
     public name: string,
     public readonly code: string,
-    public managerId: string,
+    public managerId: string | null,
     public isActive: boolean,
     createdAt?: Date,
     updatedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
-    this._updatedAt = updatedAt ?? new Date();
+    this.updatedAt = updatedAt ?? new Date();
     this.isActive = isActive ?? true;
-  }
-
-  get updatedAt(): Date {
-    return this._updatedAt;
   }
 
   updateName(name: string): void {
@@ -27,7 +23,7 @@ export class Department {
     }
   }
 
-  changeManager(managerId: string): void {
+  changeManager(managerId: string | null): void {
     if (this.managerId !== managerId) {
       this.managerId = managerId;
       this.touch();
@@ -49,6 +45,6 @@ export class Department {
   }
 
   private touch(): void {
-    this._updatedAt = new Date();
+    this.updatedAt = new Date();
   }
 }

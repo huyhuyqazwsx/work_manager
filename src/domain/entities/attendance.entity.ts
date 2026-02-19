@@ -2,7 +2,7 @@ import { AttendanceStatus } from '../enum/enum';
 
 export class Attendance {
   public readonly createdAt: Date;
-  private _updatedAt: Date;
+  public updatedAt: Date;
 
   constructor(
     public readonly id: string,
@@ -17,16 +17,12 @@ export class Attendance {
     updatedAt?: Date,
   ) {
     this.createdAt = createdAt ?? new Date();
-    this._updatedAt = updatedAt ?? new Date();
+    this.updatedAt = updatedAt ?? new Date();
     this.status = status ?? AttendanceStatus.SCHEDULED;
     this.checkIn = checkIn ?? null;
     this.checkOut = checkOut ?? null;
     this.plan = plan ?? null;
     this.result = result ?? null;
-  }
-
-  get updatedAt(): Date {
-    return this._updatedAt;
   }
 
   updatePlan(plan: string): void {
@@ -121,6 +117,6 @@ export class Attendance {
   }
 
   private touch(): void {
-    this._updatedAt = new Date();
+    this.updatedAt = new Date();
   }
 }
