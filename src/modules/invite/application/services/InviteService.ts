@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -22,6 +23,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { InviteUsersResult } from '../../../user/application/dto/invite-user-result.dto';
 import { InviteImportResponse } from '../dto/invite-import.response';
+import { UserStatus } from '../../../../domain/enum/enum';
 
 @Injectable()
 export class InviteService implements IInviteService {
@@ -46,6 +48,36 @@ export class InviteService implements IInviteService {
     }
 
     return readFileSync(filePath);
+  }
+
+  async inviteSingleUser(invite: InviteForm): Promise<UserStatus> {
+    const user = await this.userService.findUserByEmail(invite.email);
+
+    if (!user) {
+      await this.userService.createPendingUserAndSendInvite(
+        invite.email,
+        invite.role,
+        invite.hireDate,
+        invite.departmentCode,
+      );
+
+      return UserStatus.PENDING;
+    }
+
+    if (user.isPending()) {
+      await this.userService.resendInvite(invite.email);
+      return UserStatus.PENDING;
+    }
+
+    if (user.isActive()) {
+      return UserStatus.ACTIVE;
+    }
+
+    if (user.isInactive()) {
+      return UserStatus.INACTIVE;
+    }
+
+    throw new ConflictException(`User ${invite.email} has unsupported status`);
   }
 
   async importFromExcel(

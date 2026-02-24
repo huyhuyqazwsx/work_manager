@@ -36,4 +36,5 @@ export interface ResponseHandleZoho {
   user_status: UserStatus | null;
   email: string | null;
   accessToken?: string;
+  refreshToken?: string;
 }

@@ -36,8 +36,13 @@ export default () => ({
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'secret',
-    accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRATION,
-    refreshExpiration: `${Math.floor(Number(process.env.REDIS_TTL_REFRESH_TOKEN) / 86400)}d`,
+    access: {
+      secret: process.env.JWT_ACCESS_SECRET,
+      expiresIn: process.env.JWT_ACCESS_EXPIRATION || '15m',
+    },
+    refresh: {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d',
+    },
   },
 });

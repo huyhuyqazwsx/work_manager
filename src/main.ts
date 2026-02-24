@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import 'reflect-metadata';
 import * as fs from 'node:fs';
 import { ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync('./secrets/key.pem'),
@@ -13,6 +14,8 @@ async function bootstrap() {
     httpsOptions,
   });
   app.setGlobalPrefix('v1');
+
+  app.use(cookieParser());
 
   app.enableCors({
     origin: 'https://localhost:5173',
@@ -34,6 +37,15 @@ async function bootstrap() {
     .setTitle('Work Manager API')
     .setDescription('API documentation for Work Manager')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        in: 'header',
+      },
+      'access-token',
+    )
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);

@@ -9,11 +9,14 @@ import {
   Param,
   Post,
   Put,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import * as userServiceInterface from '../../application/interfaces/user.service.interface';
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';
+import { AccessTokenGuard } from '../../../jwt/guards/access-token.guard';
 
 @Controller('user')
 export class UserController {
@@ -22,19 +25,27 @@ export class UserController {
     private readonly userService: userServiceInterface.IUserService,
   ) {}
 
+  @Get('profile')
+  @UseGuards(AccessTokenGuard)
+  async getProfile(
+    @Req() req: Request & { user: { userId: string; role: string } },
+  ) {
+    return this.userService.getProfile(req.user.userId);
+  }
+
   @Get()
   async findAll(): Promise<UserAuth[]> {
     return this.userService.findAllUsers();
   }
 
-  @Get(':id')
-  async findById(@Param('id') id: string): Promise<UserAuth | null> {
-    return this.userService.findUserById(id);
-  }
-
   @Get('email/:email')
   async findByEmail(@Param('email') email: string): Promise<UserAuth | null> {
     return this.userService.findUserByEmail(email);
+  }
+
+  @Get(':id')
+  async findById(@Param('id') id: string): Promise<UserAuth | null> {
+    return this.userService.findUserById(id);
   }
 
   @Put(':id')

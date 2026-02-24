@@ -13,7 +13,13 @@ export interface IUserService {
   deleteUser(id: string): Promise<void>;
 
   inviteUsersFromExcel(invites: InviteForm[]): Promise<InviteUsersResult>;
-  createPendingUserAndSendInvite(email: string, role: UserRole): Promise<void>;
+  createPendingUserAndSendInvite(
+    email: string,
+    role: UserRole,
+    hireDate?: string,
+    departmentCode?: string,
+  ): Promise<void>;
   resendInvite(email: string): Promise<void>;
   verifyEmail(email: string, token: string): Promise<void>;
+  getProfile(userId: string): Promise<UserAuth | null>;
 }

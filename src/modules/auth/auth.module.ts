@@ -4,9 +4,14 @@ import { UserModule } from '../user/user.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { PassportModule } from '@nestjs/passport';
 import { ZohoOauthStrategy } from './infrastructure/strategies/zoho-oauth.strategy';
+import { AppJwtModule } from '../jwt/jwt.module';
 
 @Module({
-  imports: [PassportModule.register({ defaultStrategy: 'zoho' }), UserModule],
+  imports: [
+    PassportModule.register({ defaultStrategy: 'zoho' }),
+    UserModule,
+    AppJwtModule,
+  ],
   controllers: [AuthController],
   providers: [
     ZohoOauthStrategy,

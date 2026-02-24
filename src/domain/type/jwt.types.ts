@@ -1,16 +1,9 @@
 export interface JwtPayload {
-  sub: string; // user id
-  email?: string;
-  iat?: number;
-  exp?: number;
+  sub: string;
+  role: string;
 }
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
-}
-
-export interface TokenInfo {
-  token: string;
-  expiresIn: string;
 }

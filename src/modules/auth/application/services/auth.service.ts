@@ -3,6 +3,7 @@ import { IAuthService } from '../interfaces/auth.service.interface';
 import { ResponseHandleZoho, ZohoUserProfilePayload } from '../dto/zoho.dto';
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
+import * as jwtServiceInterface from '../../../jwt/application/interfaces/jwt.service.inteface';
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -11,6 +12,8 @@ export class AuthService implements IAuthService {
   constructor(
     @Inject('IUserService')
     private readonly userService: userServiceInterface.IUserService,
+    @Inject('IJwtService')
+    private readonly jwtService: jwtServiceInterface.IJwtService,
   ) {}
 
   async handleZohoLogin(
@@ -29,10 +32,15 @@ export class AuthService implements IAuthService {
           await this.userService.updateUser(user.id, update);
         }
 
+        //Gen token
+        const { accessToken, refreshToken } =
+          await this.jwtService.generateTokenPair(user.id, user.role);
+
         return {
           user_status: user.status,
           email: user.email,
-          accessToken: 'FAKE-${user.id}',
+          accessToken,
+          refreshToken,
         };
       } else if (user.isPending()) {
         return {
@@ -56,6 +64,10 @@ export class AuthService implements IAuthService {
 
     if (zoho.gender && zoho.gender !== user.gender) {
       update.gender = zoho.gender;
+    }
+
+    if (zoho.first_name && zoho.first_name !== user.fullName) {
+      update.fullName = zoho.first_name;
     }
 
     return Object.keys(update).length > 0 ? update : null;

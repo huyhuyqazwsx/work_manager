@@ -88,21 +88,25 @@ export class UserService implements IUserService {
     let hireDateObj = new Date();
 
     if (hireDate) {
-      // "16/2/2026" → [16, 2, 2026]
-      const parts = hireDate.split('/');
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const year = parseInt(parts[2], 10);
+      if (hireDate.includes('/')) {
+        const [day, month, year] = hireDate.split('/').map(Number);
+        hireDateObj = new Date(year, month - 1, day);
+      } else {
+        const parsed = new Date(hireDate);
 
-      // month - 1 vì JavaScript Date dùng 0-11 cho tháng
-      hireDateObj = new Date(year, month - 1, day);
+        if (isNaN(parsed.getTime())) {
+          throw new Error('Invalid hireDate format');
+        }
+
+        hireDateObj = parsed;
+      }
     }
 
     const user = new UserAuth(
       randomUUID(),
       email,
-      'null', // fullName
-      'null', // gender
+      'null',
+      'null',
       UserStatus.PENDING,
       role,
       hireDateObj,
@@ -201,5 +205,15 @@ export class UserService implements IUserService {
     });
 
     await this.cache.delete(cacheKey);
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 }

@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Inject,
   Post,
   Res,
   UploadedFile,
+  UseFilters,
   UseInterceptors,
 } from '@nestjs/common';
 import {
@@ -20,6 +22,9 @@ import express from 'express';
 import * as IInviteService from '../../application/interface/IInviteService';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InviteImportResponse } from '../../application/dto/invite-import.response';
+import { FileSizeExceptionFilter } from '../../../../helper/filter_file';
+import { UserStatus } from '../../../../domain/enum/enum';
+import * as inviteTypes_1 from '../../../../domain/type/invite.types';
 
 @ApiTags('Invites')
 @ApiBearerAuth()
@@ -61,6 +66,7 @@ export class InviteController {
       required: ['file'],
     },
   })
+  @UseFilters(FileSizeExceptionFilter)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
@@ -81,5 +87,12 @@ export class InviteController {
     }
 
     return this.inviteService.importFromExcel(file);
+  }
+
+  @Post()
+  async importUserInvite(
+    @Body() dto: inviteTypes_1.InviteForm,
+  ): Promise<UserStatus> {
+    return await this.inviteService.inviteSingleUser(dto);
   }
 }
