@@ -10,6 +10,7 @@ import { CacheModule } from './infrastructure/cache/cache.module';
 import { InviteModule } from './modules/invite/invite.module';
 import { DepartmentModule } from './modules/department/department.module';
 import { LeaveModule } from './modules/leave/leave.module';
+import { HolidayModule } from './modules/holiday/holiday.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { LeaveModule } from './modules/leave/leave.module';
     InviteModule,
     DepartmentModule,
     LeaveModule,
+    HolidayModule,
   ],
   providers: [AppService],
 })

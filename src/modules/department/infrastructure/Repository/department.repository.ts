@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { IDepartmentRepository } from '../../domain/repositories/department.repository.interface';
-import { BasePrismaRepository } from '../../../../infrastructure/repository/base/base-prisma.repository';
+import {
+  BasePrismaRepository,
+  PrismaDelegate,
+} from '../../../../infrastructure/repository/base/base-prisma.repository';
 import { Department } from '../../../../domain/entities/department.entity';
 import { Department as PrismaDepartment } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
@@ -12,7 +15,10 @@ export class PrismaDepartmentRepository
   implements IDepartmentRepository
 {
   constructor(prisma: PrismaService) {
-    super(prisma.department, DepartmentMapper);
+    super(
+      prisma.department as unknown as PrismaDelegate<PrismaDepartment>,
+      DepartmentMapper,
+    );
   }
 
   async findByName(name: string): Promise<Department | null> {

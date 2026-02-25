@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { User as PrismaUser } from '@prisma/client';
 import { UserMapper } from './user.mapper';
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
-import { BasePrismaRepository } from '../../../../infrastructure/repository/base/base-prisma.repository';
+import {
+  BasePrismaRepository,
+  PrismaDelegate,
+} from '../../../../infrastructure/repository/base/base-prisma.repository';
 import { IUserRepository } from '../../domain/repositories/user.repository.interface';
 import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
 
@@ -12,7 +15,7 @@ export class PrismaUserRepository
   implements IUserRepository
 {
   constructor(private readonly prisma: PrismaService) {
-    super(prisma.user, UserMapper);
+    super(prisma.user as unknown as PrismaDelegate<PrismaUser>, UserMapper);
   }
 
   async findByEmail(email: string): Promise<UserAuth | null> {

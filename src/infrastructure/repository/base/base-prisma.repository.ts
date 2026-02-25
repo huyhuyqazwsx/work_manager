@@ -3,16 +3,55 @@ import { Prisma } from '@prisma/client';
 
 export interface IBaseMapper<Domain, Persistence> {
   toDomain(raw: Persistence): Domain;
-  toPersistence(entity: Domain | Partial<Domain>): Record<string, any>;
+  toPersistence(entity: Domain | Partial<Domain>): Record<string, unknown>;
 }
 
-type PrismaDelegate<T> = {
-  findUnique(args: { where: { id: string } }): Promise<T | null>;
-  findFirst(args: { where: any }): Promise<T | null>;
-  findMany(): Promise<T[]>;
-  create(args: { data: any }): Promise<T>;
-  update(args: { where: { id: string }; data: any }): Promise<T>;
+export type PrismaDelegate<T> = {
+  findUnique(args: {
+    where: { id: string };
+    include?: Record<string, boolean | object>;
+    select?: Partial<Record<keyof T, boolean>>;
+  }): Promise<T | null>;
+
+  findFirst(args?: {
+    where?: Partial<T> | Record<string, unknown>;
+    orderBy?:
+      | Partial<Record<keyof T, 'asc' | 'desc'>>
+      | Partial<Record<keyof T, 'asc' | 'desc'>>[];
+    include?: Record<string, boolean | object>;
+    select?: Partial<Record<keyof T, boolean>>;
+    skip?: number;
+    take?: number;
+  }): Promise<T | null>;
+
+  findMany(args?: {
+    where?: Partial<T> | Record<string, unknown>;
+    orderBy?:
+      | Partial<Record<keyof T, 'asc' | 'desc'>>
+      | Partial<Record<keyof T, 'asc' | 'desc'>>[];
+    include?: Record<string, boolean | object>;
+    select?: Partial<Record<keyof T, boolean>>;
+    distinct?: (keyof T)[];
+    skip?: number;
+    take?: number;
+  }): Promise<T[]>;
+
+  create(args: {
+    data: unknown;
+    include?: Record<string, boolean | object>;
+  }): Promise<T>;
+
+  update(args: {
+    where: { id: string };
+    data: unknown;
+    include?: Record<string, boolean | object>;
+  }): Promise<T>;
+
   delete(args: { where: { id: string } }): Promise<T>;
+
+  count(args?: {
+    where?: Partial<T> | Record<string, unknown>;
+  }): Promise<number>;
 };
 
 export abstract class BasePrismaRepository<
@@ -24,72 +63,63 @@ export abstract class BasePrismaRepository<
     protected readonly mapper?: IBaseMapper<Domain, Persistence>,
   ) {}
 
-  async findById(id: string): Promise<Domain | null> {
-    const raw = await this.prismaModel.findUnique({
-      where: { id },
-    });
-
-    if (!raw) return null;
+  private toDomain(raw: Persistence): Domain {
     return this.mapper ? this.mapper.toDomain(raw) : (raw as unknown as Domain);
+  }
+
+  private toPersistence(entity: Domain | Partial<Domain>): unknown {
+    return this.mapper ? this.mapper.toPersistence(entity) : entity;
+  }
+
+  protected handleError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (error.code) {
+        case 'P2002':
+          throw new Error('Unique constraint violation');
+        case 'P2003':
+          throw new Error('Foreign key constraint failed');
+        case 'P2025':
+          throw new Error('Record not found');
+      }
+    }
+    throw error;
+  }
+
+  async findById(id: string): Promise<Domain | null> {
+    const raw = await this.prismaModel.findUnique({ where: { id } });
+    if (!raw) return null;
+    return this.toDomain(raw);
   }
 
   async findAll(): Promise<Domain[]> {
     const raws = await this.prismaModel.findMany();
-    return this.mapper
-      ? raws.map((r) => this.mapper!.toDomain(r))
-      : (raws as unknown as Domain[]);
+    return raws.map((r) => this.toDomain(r));
   }
 
   async save(entity: Domain): Promise<void> {
     try {
-      const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
-
-      await this.prismaModel.create({ data });
-    } catch (error: any) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new Error('Unique constraint violation');
-        }
-
-        if (error.code === 'P2003') {
-          throw new Error('Foreign key constraint failed');
-        }
-      }
-
-      throw error;
+      await this.prismaModel.create({ data: this.toPersistence(entity) });
+    } catch (error) {
+      this.handleError(error);
     }
   }
 
   async update(id: string, entity: Partial<Domain>): Promise<void> {
     try {
-      const data = this.mapper ? this.mapper.toPersistence(entity) : entity;
-
       await this.prismaModel.update({
         where: { id },
-        data,
+        data: this.toPersistence(entity),
       });
-    } catch (error: any) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new Error('Record not found');
-        }
-      }
-      throw error;
+    } catch (error) {
+      this.handleError(error);
     }
   }
 
   async delete(id: string): Promise<void> {
     try {
-      await this.prismaModel.delete({
-        where: { id },
-      });
-    } catch (error: any) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new Error('Record not found');
-        }
-      }
-      throw error;
+      await this.prismaModel.delete({ where: { id } });
+    } catch (error) {
+      this.handleError(error);
     }
   }
 }
