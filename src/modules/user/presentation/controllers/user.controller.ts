@@ -43,6 +43,11 @@ export class UserController {
     return this.userService.findUserByEmail(email);
   }
 
+  @Get('count')
+  async getCountCode() {
+    return await this.userService.getCountCode();
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string): Promise<UserAuth | null> {
     return this.userService.findUserById(id);
@@ -66,8 +71,8 @@ export class UserController {
   }
 
   @Post('resend-invite')
-  async resendInvite(@Body() dto: ResendInviteDto) {
-    await this.userService.resendInvite(dto.email);
+  resendInvite(@Body() dto: ResendInviteDto) {
+    void this.userService.resendInvite(dto.email);
 
     return {
       success: true,

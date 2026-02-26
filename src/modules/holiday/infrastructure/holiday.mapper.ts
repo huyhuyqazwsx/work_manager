@@ -14,6 +14,8 @@ export class HolidayMapper {
       raw.isRecurring,
       raw.createdBy,
       raw.createdAt,
+      raw.isCompensatory,
+      raw.originalHolidayId || undefined,
     );
   }
 

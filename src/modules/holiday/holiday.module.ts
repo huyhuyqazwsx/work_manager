@@ -15,5 +15,6 @@ import { PrismaHolidayRepository } from './infrastructure/holiday.repository';
     },
   ],
   controllers: [HolidayController],
+  exports: ['IHolidayService'],
 })
 export class HolidayModule {}

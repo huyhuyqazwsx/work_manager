@@ -102,8 +102,12 @@ export class UserService implements IUserService {
       }
     }
 
+    const count = (await this.userRepository.count()) + 1;
+    const code = 'SG' + count;
+
     const user = new UserAuth(
       randomUUID(),
+      code,
       email,
       'null',
       'null',
@@ -113,7 +117,7 @@ export class UserService implements IUserService {
     );
 
     await this.userRepository.save(user);
-    await this.resendInvite(email);
+    void this.resendInvite(email);
   }
 
   async resendInvite(email: string) {
@@ -215,5 +219,10 @@ export class UserService implements IUserService {
     }
 
     return user;
+  }
+
+  async getCountCode(): Promise<string> {
+    const count = (await this.userRepository.count()) + 1;
+    return 'SG' + count;
   }
 }

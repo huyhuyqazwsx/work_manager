@@ -11,6 +11,7 @@ import { InviteModule } from './modules/invite/invite.module';
 import { DepartmentModule } from './modules/department/department.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
+import { LeaveTypeModule } from './modules/leave-type/leave-type.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { HolidayModule } from './modules/holiday/holiday.module';
     DepartmentModule,
     LeaveModule,
     HolidayModule,
+    LeaveTypeModule,
   ],
   providers: [AppService],
 })

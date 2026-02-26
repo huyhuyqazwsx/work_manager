@@ -6,6 +6,7 @@ export class UserAuth {
 
   constructor(
     public readonly id: string,
+    public readonly code: string | null,
     public readonly email: string,
     public fullName: string,
     public gender: string,

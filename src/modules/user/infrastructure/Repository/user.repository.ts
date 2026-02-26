@@ -24,4 +24,8 @@ export class PrismaUserRepository
     });
     return raw ? UserMapper.toDomain(raw) : null;
   }
+
+  async count(): Promise<number> {
+    return this.prisma.user.count();
+  }
 }

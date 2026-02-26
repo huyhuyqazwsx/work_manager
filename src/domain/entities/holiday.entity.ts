@@ -6,15 +6,18 @@ export class Holiday {
   constructor(
     public readonly id: string,
     public name: string,
-    public readonly date: Date,
-    public readonly type: HolidayType,
-    public readonly session: HolidaySession,
-    public readonly isRecurring: boolean,
-    public readonly createdBy: string,
+    public date: Date,
+    public type: HolidayType,
+    public session: HolidaySession,
+    public isRecurring: boolean,
+    public createdBy: string,
     createdAt?: Date,
+    public isCompensatory?: boolean,
+    public originalHolidayId?: string,
   ) {
     this.createdAt = createdAt ?? new Date();
     this.isRecurring = isRecurring ?? false;
+    this.isCompensatory = isCompensatory ?? false;
   }
 
   updateName(name: string): void {
@@ -72,5 +75,35 @@ export class Holiday {
 
   shouldRecurNextYear(): boolean {
     return this.isRecurring;
+  }
+
+  isWeekend(): boolean {
+    const day = this.date.getDay();
+    return day === 0 || day === 6;
+  }
+
+  needsCompensation(): boolean {
+    return (
+      this.type === HolidayType.FIXED &&
+      this.isWeekend() &&
+      !this.isCompensatory
+    );
+  }
+
+  getCompensatoryDate(): Date {
+    if (!this.needsCompensation()) {
+      throw new Error('This holiday does not need compensation');
+    }
+
+    const compensatoryDate = new Date(this.date);
+    const dayOfWeek = this.date.getDay();
+
+    if (dayOfWeek === 6) {
+      compensatoryDate.setDate(compensatoryDate.getDate() + 2);
+    } else if (dayOfWeek === 0) {
+      compensatoryDate.setDate(compensatoryDate.getDate() + 1);
+    }
+
+    return compensatoryDate;
   }
 }

@@ -22,4 +22,5 @@ export interface IUserService {
   resendInvite(email: string): Promise<void>;
   verifyEmail(email: string, token: string): Promise<void>;
   getProfile(userId: string): Promise<UserAuth | null>;
+  getCountCode(): Promise<string>;
 }
