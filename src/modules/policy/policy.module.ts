@@ -1,9 +1,18 @@
 import { Module } from '@nestjs/common';
 import { PolicyService } from './application/services/policy.service';
-import { PolicyController } from './presentation/controllers/policy.controller';
+import { PrismaPolicyRepository } from './infrastructure/policy.repository';
 
 @Module({
-  providers: [PolicyService],
-  controllers: [PolicyController],
+  providers: [
+    {
+      provide: 'IPolicyService',
+      useClass: PolicyService,
+    },
+    {
+      provide: 'IPolicyRepository',
+      useClass: PrismaPolicyRepository,
+    },
+  ],
+  exports: ['IPolicyService'],
 })
 export class PolicyModule {}

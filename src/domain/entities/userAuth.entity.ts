@@ -12,7 +12,14 @@ export class UserAuth {
     public gender: string,
     public status: UserStatus,
     public role: UserRole,
-    public hireDate: Date,
+
+    public departmentId: string | null,
+    public position: string,
+    public contractType: string,
+
+    public joinDate: Date,
+    public contractSignedDate: Date | null,
+
     createdAt?: Date,
     updatedAt?: Date,
   ) {
@@ -20,7 +27,8 @@ export class UserAuth {
     this.updatedAt = updatedAt ?? new Date();
     this.status = status ?? UserStatus.PENDING;
     this.role = role ?? UserRole.EMPLOYEE;
-    this.hireDate = hireDate ?? new Date();
+    this.joinDate = joinDate ?? new Date();
+    this.contractSignedDate = contractSignedDate ?? null;
   }
 
   updateFullName(fullName: string): void {
@@ -40,6 +48,43 @@ export class UserAuth {
   updateRole(role: UserRole): void {
     if (this.role !== role) {
       this.role = role;
+      this.touch();
+    }
+  }
+
+  updateDepartment(departmentId: string | null): void {
+    if (this.departmentId !== departmentId) {
+      this.departmentId = departmentId;
+      this.touch();
+    }
+  }
+
+  updatePosition(position: string): void {
+    if (this.position !== position) {
+      this.position = position;
+      this.touch();
+    }
+  }
+
+  updateContractType(contractType: string): void {
+    if (this.contractType !== contractType) {
+      this.contractType = contractType;
+      this.touch();
+    }
+  }
+
+  updateJoinDate(joinDate: Date): void {
+    if (this.joinDate.getTime() !== joinDate.getTime()) {
+      this.joinDate = joinDate;
+      this.touch();
+    }
+  }
+
+  updateContractSignedDate(date: Date | null): void {
+    if (
+      (this.contractSignedDate?.getTime() ?? null) !== (date?.getTime() ?? null)
+    ) {
+      this.contractSignedDate = date;
       this.touch();
     }
   }
@@ -107,7 +152,7 @@ export class UserAuth {
 
   getYearsOfService(): number {
     const now = new Date();
-    const diffTime = now.getTime() - this.hireDate.getTime();
+    const diffTime = now.getTime() - this.joinDate.getTime();
     return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 365));
   }
 

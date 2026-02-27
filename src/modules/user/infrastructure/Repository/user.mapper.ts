@@ -1,6 +1,10 @@
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { User as PrismaUser } from '@prisma/client';
-import { UserRole, UserStatus } from '../../../../domain/enum/enum';
+import {
+  ContractType,
+  UserRole,
+  UserStatus,
+} from '../../../../domain/enum/enum';
 
 export class UserMapper {
   static toDomain(raw: PrismaUser): UserAuth {
@@ -12,7 +16,11 @@ export class UserMapper {
       raw.gender,
       raw.status as UserStatus,
       raw.role as UserRole,
-      raw.hireDate,
+      raw.departmentId,
+      raw.position,
+      raw.contractType as ContractType,
+      raw.joinDate,
+      raw.contractSignedDate,
       raw.createdAt,
       raw.updatedAt,
     );

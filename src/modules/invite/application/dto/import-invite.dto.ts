@@ -3,26 +3,40 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  Matches,
+  IsDate,
+  IsNotEmpty,
 } from 'class-validator';
-import { UserRole } from '../../../../domain/enum/enum';
+import { Type } from 'class-transformer';
+import { UserRole, ContractType } from '../../../../domain/enum/enum';
 
 export class InviteFormDto {
+  @IsOptional()
+  @IsString()
+  employeeCode?: string;
+
   @IsEmail({}, { message: 'Invalid email format' })
-  @Matches(/^[^\s@]+@skysolution\.com$/, {
-    message: 'Email must end with @skysolution.com',
-  })
   email: string;
 
-  @IsEnum(UserRole, { message: 'Invalid role value' })
-  role: UserRole;
-
-  @Matches(/^\d{1,2}\/\d{1,2}\/\d{4}$/, {
-    message: 'hireDate must be in format D/M/YYYY (e.g., 16/2/2026)',
-  })
-  hireDate: string;
+  @IsString()
+  @IsNotEmpty()
+  department: string;
 
   @IsOptional()
   @IsString()
-  departmentCode?: string;
+  position?: string;
+
+  @IsEnum(ContractType)
+  contractType: ContractType;
+
+  @Type(() => Date)
+  @IsDate({ message: 'joinDate must be a valid date' })
+  joinDate: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate({ message: 'contractSignedDate must be a valid date' })
+  contractSignedDate?: Date;
+
+  @IsEnum(UserRole)
+  role: UserRole;
 }

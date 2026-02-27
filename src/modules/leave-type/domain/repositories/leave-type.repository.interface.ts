@@ -1,4 +1,7 @@
 import { IBaseRepository } from '../../../../domain/repositories/base.repository';
 import { LeaveType } from '../../../../domain/entities/leave_type.entity';
 
-export interface ILeaveTypeRepository extends IBaseRepository<LeaveType> {}
+export interface ILeaveTypeRepository extends IBaseRepository<LeaveType> {
+  findByCode(code: string): Promise<LeaveType | null>;
+  findAllActive(): Promise<LeaveType[]>;
+}

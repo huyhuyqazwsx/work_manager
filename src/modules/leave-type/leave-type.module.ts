@@ -15,5 +15,6 @@ import { PrismaLeaveTypeRepository } from './infrastructure/leave-type.repositor
     },
   ],
   controllers: [LeaveTypeController],
+  exports: ['ILeaveTypeService'],
 })
 export class LeaveTypeModule {}

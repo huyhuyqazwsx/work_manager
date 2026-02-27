@@ -54,12 +54,7 @@ export class InviteService implements IInviteService {
     const user = await this.userService.findUserByEmail(invite.email);
 
     if (!user) {
-      await this.userService.createPendingUserAndSendInvite(
-        invite.email,
-        invite.role,
-        invite.hireDate,
-        invite.departmentCode,
-      );
+      await this.userService.createPendingUserAndSendInvite(invite);
 
       return UserStatus.PENDING;
     }
@@ -126,11 +121,24 @@ export class InviteService implements IInviteService {
   }
 
   private validateHeader(sheet: ExcelJS.Worksheet): void {
-    const headerRow = sheet.getRow(7);
+    const headerRow = sheet.getRow(1);
 
-    const expectedHeaders = ['Email', 'Role', 'Hiredate', 'DepartmentCode'];
+    const expectedHeaders = [
+      'Code',
+      'Email',
+      'Department',
+      'Job Position',
+      'Contract Type',
+      'Joining Date',
+      'Contract Signed Date',
+      'Role',
+    ];
 
     const actualHeaders = [
+      headerRow.getCell(1).text.trim(),
+      headerRow.getCell(2).text.trim(),
+      headerRow.getCell(3).text.trim(),
+      headerRow.getCell(4).text.trim(),
       headerRow.getCell(5).text.trim(),
       headerRow.getCell(6).text.trim(),
       headerRow.getCell(7).text.trim(),
@@ -154,47 +162,57 @@ export class InviteService implements IInviteService {
     //Check Duplicate
     const emailMap = new Map<string, { count: number; rows: number[] }>();
 
-    for (let rowNumber = 8; rowNumber <= sheet.rowCount; rowNumber++) {
+    for (let rowNumber = 3; rowNumber <= sheet.rowCount; rowNumber++) {
       const row = sheet.getRow(rowNumber);
 
-      const email = row.getCell(5).text?.trim();
-      const role = row.getCell(6).text?.trim();
-      const hireDate = row.getCell(7).text?.trim();
-      const departmentCode = row.getCell(8).text?.trim();
+      const code = row.getCell(1).text?.trim();
+      const email = row.getCell(2).text.trim();
+      const department = row.getCell(3).text.trim();
+      const position = row.getCell(4).text?.trim();
+      const contractType = row.getCell(5).text.trim();
+      const joinDate = row.getCell(6).value as Date;
+      const contractSignedDate = row.getCell(7).value as Date | undefined;
+      const role = row.getCell(8).text.trim();
 
       // Skip empty rows
-      if (!email && !role && !hireDate) {
+      if (!email && !department && !contractType && !joinDate && !role) {
         continue;
       }
 
       total++;
 
       const dto = plainToInstance(InviteFormDto, {
+        employeeCode: code,
         email,
+        department,
+        position,
+        contractType,
+        joinDate,
+        contractSignedDate,
         role,
-        hireDate,
-        departmentCode,
       });
 
       const validationErrors = await validate(dto);
 
       if (validationErrors.length > 0) {
         validationErrors.forEach((err) => {
-          const field = err.property;
+          const field = err.property as InviteImportError['field'];
           const value = dto[field as keyof InviteFormDto];
+
           if (err.constraints) {
             Object.values(err.constraints).forEach((message) => {
               errors.push({
                 row: rowNumber,
-                field: field,
+                field,
                 email,
-                value: value,
+                value,
                 reason: message,
               });
             });
           }
         });
       } else {
+        // Duplicate email
         if (email) {
           const normalizedEmail = email.toLowerCase();
 
@@ -206,12 +224,17 @@ export class InviteService implements IInviteService {
           entry.count++;
           entry.rows.push(rowNumber);
         }
+
         // Valid data
         validData.push({
+          employeeCode: dto.employeeCode,
           email: dto.email,
+          department: dto.department,
+          position: dto.position,
+          contractType: dto.contractType,
+          joinDate: dto.joinDate,
+          contractSignedDate: dto.contractSignedDate,
           role: dto.role,
-          hireDate: dto.hireDate,
-          departmentCode: dto.departmentCode,
         });
       }
     }

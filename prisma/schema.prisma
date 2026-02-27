@@ -12,16 +12,24 @@ datasource db {
 // ============================================
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String?  @unique @db.VarChar(50)
-  email     String   @unique
-  fullName  String
-  gender    String
-  status    String   // PENDING | ACTIVE | INACTIVE
-  role      String   // EMPLOYEE | DEPARTMENT_HEAD | HR | DIRECTOR
-  hireDate  DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid()) @db.Uuid
+  code               String?  @unique @db.VarChar(50)
+  email              String   @unique
+  fullName           String
+  gender             String
+
+  status             String   // PENDING | ACTIVE | INACTIVE
+  role               String   // EMPLOYEE | DEPARTMENT_HEAD | HR | BOD
+
+  departmentId       String?  @db.Uuid
+  position           String   // Content Marketing, Developer, etc.
+
+  contractType       String   // Intern | Trainee | Probation | Official Employee
+  joinDate           DateTime
+  contractSignedDate DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("users")
 }
@@ -36,14 +44,6 @@ model Department {
   updatedAt DateTime @updatedAt
 
   @@map("departments")
-}
-
-model DepartmentEmployee {
-  departmentId String @db.Uuid
-  employeeId   String @db.Uuid
-
-  @@id([departmentId, employeeId])
-  @@map("department_employees")
 }
 
 // ============================================
@@ -189,17 +189,27 @@ model PolicyCondition {
   maxYear      Int?
   departmentId String? @db.Uuid
   role         String? // EMPLOYEE | DEPARTMENT_HEAD | HR | DIRECTOR
+  contractType String? // INTERN | TRAINEE | PROBATION | OFFICIAL_EMPLOYEE
+  applyYear    Int? // optional, null = mọi năm
 
   @@map("policy_conditions")
 }
 
 model LeavePolicyValue {
-  id                   String  @id @default(uuid()) @db.Uuid
-  policyId             String  @db.Uuid
-  leaveTypeId          String  @db.Uuid
+  id                   String   @id @default(uuid()) @db.Uuid
+  policyId             String   @db.Uuid
+  leaveTypeId          String   @db.Uuid
   maxDaysPerRequest    Float
   minimumNoticeDays    Int
-  allowNegativeBalance Boolean @default(false)
+  allowNegativeBalance Boolean  @default(false)
+
+  baseDaysPerYear      Float    @default(0)
+  bonusDaysPerCycle    Float    @default(0)
+  bonusYearCycle       Int      @default(0)   // 0 = không áp dụng bonus
+  prorateByMonth       Boolean  @default(true)
+  joinDateCutoffDay    Int      @default(15)
+  carryOverDays        Float    @default(0)
+  allowedContractTypes String[] @default([])  // PostgreSQL array
 
   @@map("leave_policy_values")
 }

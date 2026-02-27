@@ -14,8 +14,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserRole, UserStatus } from '../../../../domain/enum/enum';
+import { UserStatus } from '../../../../domain/enum/enum';
 import { InviteForm } from '../../../../domain/type/invite.types';
+import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 
 @Injectable()
 export class UserService implements IUserService {
@@ -27,6 +28,8 @@ export class UserService implements IUserService {
     private readonly cache: cacheRepositoryInterface.ICacheRepository,
     @Inject('IMailService')
     private readonly mailService: mailServiceInterface.IMailService,
+    @Inject('IDepartmentService')
+    private readonly departmentService: departmentServiceInterface.IDepartmentService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -79,45 +82,47 @@ export class UserService implements IUserService {
   }
 
   //Gửi xác thực cho email
-  async createPendingUserAndSendInvite(
-    email: string,
-    role: UserRole = UserRole.EMPLOYEE,
-    hireDate?: string,
-    departmentCode?: string,
-  ): Promise<void> {
-    let hireDateObj = new Date();
+  async createPendingUserAndSendInvite(form: InviteForm): Promise<void> {
+    // Map department
+    let departmentId: string | null = null;
 
-    if (hireDate) {
-      if (hireDate.includes('/')) {
-        const [day, month, year] = hireDate.split('/').map(Number);
-        hireDateObj = new Date(year, month - 1, day);
-      } else {
-        const parsed = new Date(hireDate);
+    if (form.department) {
+      const department = await this.departmentService.findByName(
+        form.department,
+      );
 
-        if (isNaN(parsed.getTime())) {
-          throw new Error('Invalid hireDate format');
-        }
-
-        hireDateObj = parsed;
+      if (!department) {
+        throw new Error('Department not found');
       }
+
+      departmentId = department.id;
     }
 
-    const count = (await this.userRepository.count()) + 1;
-    const code = 'SG' + count;
+    // Generate employeeCode nếu không có
+    let code = form.employeeCode ?? null;
+
+    if (!code) {
+      code = await this.getCountCode();
+    }
 
     const user = new UserAuth(
       randomUUID(),
       code,
-      email,
-      'null',
-      'null',
+      form.email,
+      '', // fullName (chưa có trong form)
+      '', // gender (chưa có trong form)
       UserStatus.PENDING,
-      role,
-      hireDateObj,
+      form.role,
+      departmentId,
+      form.position ?? '',
+      form.contractType,
+      form.joinDate,
+      form.contractSignedDate ?? null,
     );
 
     await this.userRepository.save(user);
-    void this.resendInvite(email);
+
+    void this.resendInvite(form.email);
   }
 
   async resendInvite(email: string) {
@@ -128,7 +133,7 @@ export class UserService implements IUserService {
 
     await this.cache.set(`verification:${email}`, verificationToken, ttl);
 
-    await this.mailService.sendVerificationEmail(email, verificationToken);
+    // await this.mailService.sendVerificationEmail(email, verificationToken);
   }
 
   async inviteUsersFromExcel(
@@ -144,12 +149,7 @@ export class UserService implements IUserService {
       const user = await this.userRepository.findByEmail(invite.email);
 
       if (!user) {
-        await this.createPendingUserAndSendInvite(
-          invite.email,
-          invite.role,
-          invite.hireDate,
-          invite.departmentCode,
-        );
+        await this.createPendingUserAndSendInvite(invite);
         result.PENDING.push(invite.email);
         continue;
       }
@@ -222,6 +222,7 @@ export class UserService implements IUserService {
   }
 
   async getCountCode(): Promise<string> {
+    //TODO Refactor logic add
     const count = (await this.userRepository.count()) + 1;
     return 'SG' + count;
   }

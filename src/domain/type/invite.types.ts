@@ -1,18 +1,30 @@
-import { UserRole } from '../enum/enum';
+import { ContractType, UserRole } from '../enum/enum';
 
 export interface InviteForm {
+  employeeCode?: string; // Code
   email: string;
+  department: string;
+  position?: string;
+  contractType: ContractType;
+  joinDate: Date;
+  contractSignedDate?: Date;
   role: UserRole;
-  hireDate: string; // ISO string: yyyy-mm-dd
-  departmentCode?: string;
 }
 
 export interface InviteImportError {
   row: number;
-  field?: string; // 'email' | 'role' | 'hireDate' | 'departmentCode'
-  email?: string; // Email value nếu có
-  value?: any; // Giá trị bị lỗi
-  reason: string; // Error message
+  field?:
+    | 'employeeCode'
+    | 'email'
+    | 'departmentCode'
+    | 'position'
+    | 'contractType'
+    | 'hireDate'
+    | 'contractSignedDate'
+    | 'role';
+  email?: string;
+  value?: any;
+  reason: string;
 }
 
 export interface InviteImportResult {

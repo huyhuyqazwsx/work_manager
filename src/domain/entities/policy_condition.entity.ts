@@ -1,4 +1,4 @@
-import { UserRole } from '../enum/enum';
+import { ContractType, UserRole } from '../enum/enum';
 
 export class PolicyCondition {
   constructor(
@@ -8,11 +8,40 @@ export class PolicyCondition {
     public maxYear: number | null,
     public departmentId: string | null,
     public role: UserRole | null,
+    public contractType: ContractType | null,
+    public applyYear: number | null,
   ) {
     this.minYear = minYear ?? null;
     this.maxYear = maxYear ?? null;
     this.departmentId = departmentId ?? null;
     this.role = role ?? null;
+    this.contractType = contractType ?? null;
+    this.applyYear = applyYear ?? null;
+  }
+
+  matchesContractType(contractType: ContractType): boolean {
+    if (this.contractType === null) return true;
+    return this.contractType === contractType;
+  }
+
+  matchesApplyYear(year: number): boolean {
+    if (this.applyYear === null) return true;
+    return this.applyYear === year;
+  }
+
+  matches(params: {
+    yearsOfService: number;
+    departmentId?: string;
+    role: UserRole;
+    contractType: ContractType;
+    applyYear?: number;
+  }): boolean {
+    if (!this.matchesYearsOfService(params.yearsOfService)) return false;
+    if (params.departmentId && !this.matchesDepartment(params.departmentId))
+      return false;
+    if (!this.matchesRole(params.role)) return false;
+    if (!this.matchesContractType(params.contractType)) return false;
+    return !(params.applyYear && !this.matchesApplyYear(params.applyYear));
   }
 
   updateYearRange(minYear: number | null, maxYear: number | null): void {
@@ -47,22 +76,6 @@ export class PolicyCondition {
       return true;
     }
     return this.role === role;
-  }
-
-  matches(params: {
-    yearsOfService: number;
-    departmentId?: string;
-    role: UserRole;
-  }): boolean {
-    if (!this.matchesYearsOfService(params.yearsOfService)) {
-      return false;
-    }
-
-    if (params.departmentId && !this.matchesDepartment(params.departmentId)) {
-      return false;
-    }
-
-    return this.matchesRole(params.role);
   }
 
   hasYearRestriction(): boolean {
