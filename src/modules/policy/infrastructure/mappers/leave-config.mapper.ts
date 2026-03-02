@@ -14,7 +14,6 @@ export class LeaveConfigMapper {
       raw.minimumNoticeDays,
       raw.prorateByMonth,
       raw.joinDateCutoffDay,
-      raw.carryOverDays,
       raw.allowNegativeBalance,
       raw.isActive,
     );

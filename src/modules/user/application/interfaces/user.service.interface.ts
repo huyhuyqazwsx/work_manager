@@ -1,10 +1,12 @@
 import { UserAuth } from '../../../../domain/entities/userAuth.entity';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { InviteForm } from '../../../../domain/type/invite.types';
+import { UserRole } from '../../../../domain/enum/enum';
 
 export interface IUserService {
   findUserById(id: string): Promise<UserAuth | null>;
   findUserByEmail(email: string): Promise<UserAuth | null>;
+  findUsersByRole(role: UserRole): Promise<UserAuth[]>;
   findAllUsers(): Promise<UserAuth[]>;
   createUser(user: UserAuth): Promise<void>;
   createUserFromOAuth(user: UserAuth): Promise<void>;

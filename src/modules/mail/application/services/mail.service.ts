@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { VerificationEmailTemplate } from '../templates/verification-email.template';
+import { buildLeaveRequestTemplate } from '../templates/leave-request-email.template';
 
 @Injectable()
 export class MailService implements IMailService {
@@ -21,6 +22,42 @@ export class MailService implements IMailService {
     });
 
     this.logger.log('Mail service initialized');
+  }
+
+  async sendLeaveRequest(
+    to: string | string[],
+    params: {
+      employeeName: string;
+      employeeId: string;
+      leaveTypeName: string;
+      fromDate: string;
+      fromTime?: string;
+      toDate: string;
+      toTime?: string;
+      totalDays: number;
+      reason?: string | null;
+      note?: string | null;
+      managerName: string;
+      actionLink: string;
+    },
+    cc?: string | string[],
+  ): Promise<void> {
+    const subject = `[SkyCorp HRM] Yêu cầu duyệt phép ngày ${params.fromDate} - ${params.employeeName}`;
+    const html = buildLeaveRequestTemplate(params);
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"SkyCorp HRM" <${this.configService.get<string>('smtp.user')}>`,
+        to,
+        cc,
+        subject,
+        html,
+      });
+      this.logger.log(`Leave request email sent: ${info.messageId}`);
+    } catch (error) {
+      this.logger.error(`Failed to send leave request email`, error);
+      throw new Error('Failed to send leave request email');
+    }
   }
 
   async sendWelcomeEmail(email: string, userName: string): Promise<void> {
@@ -62,17 +99,26 @@ export class MailService implements IMailService {
     this.logger.log(`Verification email sent to: ${email}`);
   }
 
-  async sendRawEmail(to: string, subject: string, html: string): Promise<void> {
+  async sendRawEmail(
+    to: string | string[],
+    subject: string,
+    html: string,
+    cc?: string | string[],
+    bcc?: string | string[],
+  ): Promise<void> {
     try {
       const info = await this.transporter.sendMail({
         from: `"Task Manager" <${this.configService.get<string>('smtp.user')}>`,
         to,
+        cc,
+        bcc,
         subject,
         html,
       });
-      this.logger.debug('Email sent to: ', info.messageId);
+
+      this.logger.debug(`Email sent successfully: ${info.messageId}`);
     } catch (error) {
-      this.logger.error('Failed to sent email to ${to}: ', error);
+      this.logger.error(`Failed to send email`, error);
       throw new Error('Failed to send email');
     }
   }

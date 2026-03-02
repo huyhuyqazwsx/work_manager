@@ -14,7 +14,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserStatus } from '../../../../domain/enum/enum';
+import { UserRole, UserStatus } from '../../../../domain/enum/enum';
 import { InviteForm } from '../../../../domain/type/invite.types';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 
@@ -32,6 +32,9 @@ export class UserService implements IUserService {
     private readonly departmentService: departmentServiceInterface.IDepartmentService,
     private readonly configService: ConfigService,
   ) {}
+  findUsersByRole(role: UserRole): Promise<UserAuth[]> {
+    return this.userRepository.findByRole(role);
+  }
 
   async createUserFromOAuth(user: UserAuth): Promise<void> {
     this.logger.log(`Creating new user from OAuth`);
@@ -97,6 +100,8 @@ export class UserService implements IUserService {
 
       departmentId = department.id;
     }
+
+    if (departmentId == null) throw new Error('Department not found');
 
     // Generate employeeCode nếu không có
     let code = form.employeeCode ?? null;

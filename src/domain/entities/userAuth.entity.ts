@@ -1,4 +1,4 @@
-import { UserRole, UserStatus } from '../enum/enum';
+import { ContractType, UserRole, UserStatus } from '../enum/enum';
 
 export class UserAuth {
   public readonly createdAt: Date;
@@ -13,9 +13,9 @@ export class UserAuth {
     public status: UserStatus,
     public role: UserRole,
 
-    public departmentId: string | null,
+    public departmentId: string,
     public position: string,
-    public contractType: string,
+    public contractType: ContractType,
 
     public joinDate: Date,
     public contractSignedDate: Date | null,
@@ -52,7 +52,7 @@ export class UserAuth {
     }
   }
 
-  updateDepartment(departmentId: string | null): void {
+  updateDepartment(departmentId: string): void {
     if (this.departmentId !== departmentId) {
       this.departmentId = departmentId;
       this.touch();
@@ -66,7 +66,7 @@ export class UserAuth {
     }
   }
 
-  updateContractType(contractType: string): void {
+  updateContractType(contractType: ContractType): void {
     if (this.contractType !== contractType) {
       this.contractType = contractType;
       this.touch();
@@ -136,6 +136,10 @@ export class UserAuth {
 
   isBOD(): boolean {
     return this.role === UserRole.BOD;
+  }
+
+  isOfficialEmployee(): boolean {
+    return this.contractType === ContractType.OFFICIAL_EMPLOYEE;
   }
 
   canApproveLeave(): boolean {

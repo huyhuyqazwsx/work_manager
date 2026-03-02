@@ -3,6 +3,7 @@ import * as mailServiceInterface_1 from '../../application/interfaces/mail.servi
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SendVerificationMailDto } from '../../application/dto/send-verification-mail.dto';
 import { SendMailDto } from '../../application/dto/send-mail.dto';
+import { SendLeaveRequestMailDto } from '../../application/dto/send-leave-request-mail.dto';
 
 @ApiTags('Mail')
 @Controller('mail')
@@ -16,7 +17,7 @@ export class MailController {
   @ApiOperation({ summary: 'Send verification email' })
   @ApiResponse({ status: 200, description: 'Email sent successfully' })
   async sendVerification(@Body() dto: SendVerificationMailDto) {
-    this.mailService.sendVerificationEmail(
+    await this.mailService.sendVerificationEmail(
       dto.email,
       dto.verificationToken,
     );
@@ -36,6 +37,34 @@ export class MailController {
     return {
       success: true,
       message: 'Email sent',
+    };
+  }
+
+  @Post('send-leave-request')
+  @ApiOperation({ summary: 'Send leave request notification email' })
+  async sendLeaveRequest(@Body() dto: SendLeaveRequestMailDto) {
+    await this.mailService.sendLeaveRequest(
+      dto.to,
+      {
+        employeeName: dto.employeeName,
+        employeeId: dto.employeeId,
+        leaveTypeName: dto.leaveTypeName,
+        fromDate: dto.fromDate,
+        fromTime: dto.fromTime,
+        toDate: dto.toDate,
+        toTime: dto.toTime,
+        totalDays: dto.totalDays,
+        reason: dto.reason,
+        note: dto.note,
+        managerName: dto.managerName,
+        actionLink: dto.actionLink,
+      },
+      dto.cc,
+    );
+
+    return {
+      success: true,
+      message: 'Leave request email sent',
     };
   }
 }

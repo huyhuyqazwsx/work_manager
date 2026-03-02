@@ -11,7 +11,6 @@ export class LeaveConfig {
     public minimumNoticeDays: number,
     public prorateByMonth: boolean,
     public joinDateCutoffDay: number,
-    public carryOverDays: number,
     public allowNegativeBalance: boolean,
     public isActive: boolean,
   ) {}
@@ -43,43 +42,24 @@ export class LeaveConfig {
     const month = joinDate.getMonth() + 1;
     const day = joinDate.getDate();
     const effectiveMonth = day <= this.joinDateCutoffDay ? month : month + 1;
-    const workingMonths = 13 - effectiveMonth;
-    return Math.floor((workingMonths / 12) * totalDays);
+    return 13 - effectiveMonth;
   }
 
-  validateRequest(params: {
-    requestedDays: number;
-    requestDate: Date;
-    leaveStartDate: Date;
-    currentBalance: number;
-  }): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
+  // ── Validate khi tạo request ──────────────────────────────────
 
-    if (params.requestedDays > this.maxDaysPerRequest) {
-      errors.push(
-        `Tối đa ${this.maxDaysPerRequest} ngày/lần. Bạn xin ${params.requestedDays} ngày.`,
-      );
-    }
+  hasEnoughBalance(requestedDays: number, currentBalance: number): boolean {
+    if (this.allowNegativeBalance) return true;
+    return requestedDays <= currentBalance;
+  }
 
+  hasEnoughNotice(leaveStartDate: Date): boolean {
     const daysDiff = Math.floor(
-      (params.leaveStartDate.getTime() - params.requestDate.getTime()) /
-        (1000 * 60 * 60 * 24),
+      (leaveStartDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
     );
-    if (daysDiff < this.minimumNoticeDays) {
-      errors.push(
-        `Cần báo trước ${this.minimumNoticeDays} ngày. Bạn chỉ báo trước ${daysDiff} ngày.`,
-      );
-    }
+    return daysDiff >= this.minimumNoticeDays;
+  }
 
-    if (
-      !this.allowNegativeBalance &&
-      params.requestedDays > params.currentBalance
-    ) {
-      errors.push(
-        `Không đủ số ngày phép. Còn lại: ${params.currentBalance}, Xin: ${params.requestedDays}`,
-      );
-    }
-
-    return { valid: errors.length === 0, errors };
+  isWithinMaxDaysPerRequest(requestedDays: number): boolean {
+    return requestedDays <= this.maxDaysPerRequest;
   }
 }

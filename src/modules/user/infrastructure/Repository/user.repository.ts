@@ -8,6 +8,7 @@ import {
 } from '../../../../infrastructure/repository/base/base-prisma.repository';
 import { IUserRepository } from '../../domain/repositories/user.repository.interface';
 import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+import { UserRole } from '../../../../domain/enum/enum';
 
 @Injectable()
 export class PrismaUserRepository
@@ -27,5 +28,13 @@ export class PrismaUserRepository
 
   async count(): Promise<number> {
     return this.prisma.user.count();
+  }
+
+  async findByRole(role: UserRole): Promise<UserAuth[]> {
+    const raws = await this.prisma.user.findMany({
+      where: { role },
+    });
+
+    return raws.map((r) => UserMapper.toDomain(r));
   }
 }

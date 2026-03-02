@@ -19,7 +19,7 @@ model User {
   gender             String
   status             String    // PENDING | ACTIVE | INACTIVE
   role               String    // EMPLOYEE | DEPARTMENT_HEAD | HR | BOD
-  departmentId       String?   @db.Uuid
+  departmentId       String    @db.Uuid
   position           String
   contractType       String    // Intern | Trainee | Probation | Official Employee
   joinDate           DateTime
@@ -205,7 +205,6 @@ model LeaveConfig {
   minimumNoticeDays    Int
   prorateByMonth       Boolean  @default(true)
   joinDateCutoffDay    Int      @default(15)
-  carryOverDays        Float    @default(0)
   allowNegativeBalance Boolean  @default(false)
   isActive             Boolean  @default(true)
   createdAt            DateTime @default(now())
