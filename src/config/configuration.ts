@@ -45,4 +45,9 @@ export default () => ({
       expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d',
     },
   },
+
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
 });

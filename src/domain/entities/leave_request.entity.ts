@@ -6,11 +6,11 @@ export class LeaveRequest {
 
   constructor(
     public readonly id: string,
-    public readonly leaveTypeId: string,
+    public leaveTypeId: string,
     public status: LeaveRequestStatus,
-    public readonly fromDate: Date,
-    public readonly toDate: Date,
-    public readonly totalDays: number,
+    public fromDate: Date,
+    public toDate: Date,
+    public totalDays: number,
     public reason: string | null,
     public readonly createdBy: string,
     public approvedBy: string | null,

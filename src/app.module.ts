@@ -13,6 +13,7 @@ import { LeaveModule } from './modules/leave/leave.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
 import { LeaveTypeModule } from './modules/leave-type/leave-type.module';
 import { PolicyModule } from './modules/policy/policy.module';
+import { StorageModule } from './infrastructure/storage/storage.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PolicyModule } from './modules/policy/policy.module';
     LeaveTypeModule,
     PolicyModule,
     LeaveTypeModule,
+    StorageModule,
   ],
   providers: [AppService],
 })

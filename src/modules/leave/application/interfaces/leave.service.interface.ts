@@ -9,4 +9,21 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
   createLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest>;
 
   getLeaveEligibility(userId: string): Promise<LeaveEligibilityResponseDto[]>;
+
+  rejectLeaveRequest(
+    leaveRequestId: string,
+    approverId: string,
+    reason?: string | null,
+  ): Promise<LeaveRequest>;
+
+  approveLeaveRequest(
+    leaveRequestId: string,
+    approverId: string,
+  ): Promise<LeaveRequest>;
+
+  updateLeaveRequest(
+    leaveRequestId: string,
+    dto: CreateLeaveRequestDto,
+    submit: boolean,
+  ): Promise<LeaveRequest>;
 }
