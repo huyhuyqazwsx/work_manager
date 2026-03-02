@@ -1,0 +1,33 @@
+import { Injectable } from '@nestjs/common';
+import { LeaveConfig as PrismaLeaveConfig } from '@prisma/client';
+import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+import {
+  BasePrismaRepository,
+  PrismaDelegate,
+} from '../../../../infrastructure/repository/base/base-prisma.repository';
+import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
+import { LeaveConfigMapper } from '../mappers/leave-config.mapper';
+import { ContractType } from '../../../../domain/enum/enum';
+
+@Injectable()
+export class PrismaLeaveConfigRepository extends BasePrismaRepository<
+  LeaveConfig,
+  PrismaLeaveConfig
+> {
+  constructor(private readonly prisma: PrismaService) {
+    super(
+      prisma.leaveConfig as unknown as PrismaDelegate<PrismaLeaveConfig>,
+      LeaveConfigMapper,
+    );
+  }
+
+  async findByContractType(
+    contractType: ContractType,
+  ): Promise<LeaveConfig | null> {
+    const raw: PrismaLeaveConfig | null =
+      await this.prisma.leaveConfig.findUnique({
+        where: { contractType },
+      });
+    return raw ? LeaveConfigMapper.toDomain(raw) : null;
+  }
+}

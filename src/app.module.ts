@@ -12,6 +12,7 @@ import { DepartmentModule } from './modules/department/department.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
 import { LeaveTypeModule } from './modules/leave-type/leave-type.module';
+import { PolicyModule } from './modules/policy/policy.module';
 
 @Module({
   imports: [
@@ -28,6 +29,8 @@ import { LeaveTypeModule } from './modules/leave-type/leave-type.module';
     DepartmentModule,
     LeaveModule,
     HolidayModule,
+    LeaveTypeModule,
+    PolicyModule,
     LeaveTypeModule,
   ],
   providers: [AppService],

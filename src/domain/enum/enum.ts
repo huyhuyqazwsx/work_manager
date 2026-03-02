@@ -52,12 +52,6 @@ export enum HolidaySession {
   AFTERNOON = 'AFTERNOON',
 }
 
-// Policy enums
-export enum PolicyType {
-  LEAVE = 'LEAVE',
-  OT = 'OT',
-}
-
 export enum ContractType {
   INTERN = 'INTERN',
   TRAINEE = 'TRAINEE',
@@ -70,4 +64,10 @@ export enum LeaveTypeCode {
   COMPENSATORY = 'COMPENSATORY_LEAVE',
   PAID_PERSONAL = 'PAID_PERSONAL_LEAVE',
   SOCIAL_INSURANCE = 'SOCIAL_INSURANCE_LEAVE',
+}
+
+export enum PaidPersonalEventCode {
+  SELF_MARRIAGE = 'SELF_MARRIAGE', // Bản thân kết hôn - 3 ngày
+  CHILD_MARRIAGE = 'CHILD_MARRIAGE', // Con kết hôn - 1 ngày
+  FUNERAL = 'FUNERAL', // Ma chay - 3 ngày
 }

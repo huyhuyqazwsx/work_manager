@@ -12,24 +12,20 @@ datasource db {
 // ============================================
 
 model User {
-  id                 String   @id @default(uuid()) @db.Uuid
-  code               String?  @unique @db.VarChar(50)
-  email              String   @unique
+  id                 String    @id @default(uuid()) @db.Uuid
+  code               String?   @unique @db.VarChar(50)
+  email              String    @unique
   fullName           String
   gender             String
-
-  status             String   // PENDING | ACTIVE | INACTIVE
-  role               String   // EMPLOYEE | DEPARTMENT_HEAD | HR | BOD
-
-  departmentId       String?  @db.Uuid
-  position           String   // Content Marketing, Developer, etc.
-
-  contractType       String   // Intern | Trainee | Probation | Official Employee
+  status             String    // PENDING | ACTIVE | INACTIVE
+  role               String    // EMPLOYEE | DEPARTMENT_HEAD | HR | BOD
+  departmentId       String?   @db.Uuid
+  position           String
+  contractType       String    // Intern | Trainee | Probation | Official Employee
   joinDate           DateTime
   contractSignedDate DateTime?
-
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@map("users")
 }
@@ -62,22 +58,38 @@ model LeaveType {
 }
 
 model LeaveRequest {
-  id          String    @id @default(uuid()) @db.Uuid
-  leaveTypeId String    @db.Uuid
-  status      String    // DRAFT | PENDING | APPROVED | REJECTED
-  reason      String?
-  fromDate    DateTime
-  toDate      DateTime
-  totalDays   Float
-  createdBy   String    @db.Uuid
-  createdAt   DateTime  @default(now())
-  approvedBy  String?   @db.Uuid
-  approvedAt  DateTime?
+  id                    String    @id @default(uuid()) @db.Uuid
+  leaveTypeId           String    @db.Uuid
+  status                String    // DRAFT | PENDING | APPROVED | REJECTED
+  reason                String?
+  fromDate              DateTime
+  toDate                DateTime
+  totalDays             Float
+  createdBy             String    @db.Uuid
+  createdAt             DateTime  @default(now())
+  approvedBy            String?   @db.Uuid
+  approvedAt            DateTime?
+  paidPersonalEventCode String?   // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL | null
 
-  @@index([createdBy])
+  @@index([createdBy, leaveTypeId])
   @@index([status])
   @@index([fromDate, toDate])
   @@map("leave_requests")
+}
+
+// Track usage của Paid Personal Leave theo từng event
+model PaidPersonalLeaveUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  eventCode      String   // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL
+  usedDays       Float
+  year           Int
+  leaveRequestId String   @db.Uuid
+
+  createdAt      DateTime @default(now())
+
+  @@index([userId, eventCode, year])
+  @@map("paid_personal_leave_usages")
 }
 
 // ============================================
@@ -85,12 +97,11 @@ model LeaveRequest {
 // ============================================
 
 model OvertimeType {
-  id                String   @id @default(uuid()) @db.Uuid
-  code              String   @unique
-  name              String
-  defaultMultiplier Float
-  isCompensation    Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  id             String   @id @default(uuid()) @db.Uuid
+  code           String   @unique  // WEEKDAY | WEEKEND | HOLIDAY
+  name           String
+  isCompensation Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   @@map("overtime_types")
 }
@@ -125,6 +136,19 @@ model CompensationBalance {
   @@map("compensation_balances")
 }
 
+// Lịch sử thay đổi compensation balance
+model CompensationTransaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  hours     Float    // dương = cộng từ OT
+  type      String   // EARNED | USED
+  sourceId  String   @db.Uuid // overtimeRequestId hoặc leaveRequestId
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("compensation_transactions")
+}
+
 // ============================================
 // ATTENDANCE
 // ============================================
@@ -151,16 +175,16 @@ model Attendance {
 // ============================================
 
 model Holiday {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  date        DateTime
-  type        String   // FIXED | CUSTOM
-  session     String   // FULL | MORNING | AFTERNOON
-  isRecurring Boolean  @default(false)
-  createdBy   String   @db.Uuid
-  createdAt   DateTime @default(now())
-  isCompensatory    Boolean @default(false)
-  originalHolidayId String? @db.Uuid
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String
+  date              DateTime
+  type              String   // FIXED | CUSTOM
+  session           String   // FULL | MORNING | AFTERNOON
+  isRecurring       Boolean  @default(false)
+  createdBy         String   @db.Uuid
+  createdAt         DateTime @default(now())
+  isCompensatory    Boolean  @default(false)
+  originalHolidayId String?  @db.Uuid
 
   @@index([isCompensatory])
   @@index([date])
@@ -168,58 +192,48 @@ model Holiday {
 }
 
 // ============================================
-// POLICY ENGINE
+// LEAVE & OT CONFIG
 // ============================================
 
-model Policy {
-  id          String  @id @default(uuid()) @db.Uuid
-  name        String
-  type        String  // LEAVE | OT
-  priority    Int
-  isActive    Boolean @default(true)
-  leaveTypeId String? @db.Uuid
-
-  @@map("policies")
-}
-
-model PolicyCondition {
-  id           String  @id @default(uuid()) @db.Uuid
-  policyId     String  @db.Uuid
-  minYear      Int?
-  maxYear      Int?
-  departmentId String? @db.Uuid
-  role         String? // EMPLOYEE | DEPARTMENT_HEAD | HR | DIRECTOR
-  contractType String? // INTERN | TRAINEE | PROBATION | OFFICIAL_EMPLOYEE
-  applyYear    Int? // optional, null = mọi năm
-
-  @@map("policy_conditions")
-}
-
-model LeavePolicyValue {
+model LeaveConfig {
   id                   String   @id @default(uuid()) @db.Uuid
-  policyId             String   @db.Uuid
-  leaveTypeId          String   @db.Uuid
+  contractType         String   @unique
+  baseDaysPerYear      Float
+  bonusDaysPerCycle    Float
+  bonusYearCycle       Int
   maxDaysPerRequest    Float
   minimumNoticeDays    Int
-  allowNegativeBalance Boolean  @default(false)
-
-  baseDaysPerYear      Float    @default(0)
-  bonusDaysPerCycle    Float    @default(0)
-  bonusYearCycle       Int      @default(0)   // 0 = không áp dụng bonus
   prorateByMonth       Boolean  @default(true)
   joinDateCutoffDay    Int      @default(15)
   carryOverDays        Float    @default(0)
-  allowedContractTypes String[] @default([])  // PostgreSQL array
+  allowNegativeBalance Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  @@map("leave_policy_values")
+  @@map("leave_configs")
 }
 
-model OTPolicyValue {
-  id               String @id @default(uuid()) @db.Uuid
-  policyId         String @db.Uuid
-  otTypeId         String @db.Uuid
+model OTConfig {
+  id               String   @id @default(uuid()) @db.Uuid
+  contractType     String   @unique
   maxHoursPerDay   Float
-  salaryMultiplier Float
+  maxHoursPerMonth Float
+  maxHoursPerYear  Float
+  salaryMultiplier Float    @default(1.5)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  @@map("ot_policy_values")
+  @@map("ot_configs")
+}
+
+model PaidPersonalLeaveEvent {
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String  @unique
+  name        String
+  allowedDays Float
+  resetOnUse  Boolean @default(true)
+
+  @@map("paid_personal_leave_events")
 }
