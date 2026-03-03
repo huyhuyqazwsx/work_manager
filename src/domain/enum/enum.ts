@@ -25,21 +25,6 @@ export enum LeaveRequestStatus {
   REJECTED = 'REJECTED',
 }
 
-// Overtime Request enums
-export enum OvertimeRequestStatus {
-  DRAFT = 'DRAFT',
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-}
-
-// Attendance enums
-export enum AttendanceStatus {
-  SCHEDULED = 'SCHEDULED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-}
-
 // Holiday enums
 export enum HolidayType {
   FIXED = 'FIXED',
@@ -70,4 +55,31 @@ export enum PaidPersonalEventCode {
   SELF_MARRIAGE = 'SELF_MARRIAGE', // Bản thân kết hôn - 3 ngày
   CHILD_MARRIAGE = 'CHILD_MARRIAGE', // Con kết hôn - 1 ngày
   FUNERAL = 'FUNERAL', // Ma chay - 3 ngày
+}
+
+export enum OTType {
+  COMPENSATION = 'COMPENSATION',
+  SALARY = 'SALARY',
+}
+
+export enum OTPlanStatus {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
+export enum OTTicketStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum CompensationTransactionType {
+  EARNED = 'EARNED',
+  USED = 'USED',
 }

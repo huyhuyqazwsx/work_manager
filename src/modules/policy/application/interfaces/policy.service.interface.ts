@@ -7,7 +7,7 @@ import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
 import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
 
 export interface IPolicyService {
-  // LeaveConfig
+  // ===== LeaveConfig =====
   getLeaveConfig(contractType: ContractType): Promise<LeaveConfig>;
   getLeaveConfigById(id: string): Promise<LeaveConfig>;
   getAllLeaveConfigs(): Promise<LeaveConfig[]>;
@@ -15,8 +15,8 @@ export interface IPolicyService {
   updateLeaveConfig(id: string, entity: Partial<LeaveConfig>): Promise<void>;
   deleteLeaveConfig(id: string): Promise<void>;
 
-  // OTConfig
-  getOTConfig(contractType: ContractType): Promise<OTConfig | null>;
+  // ===== OTConfig =====
+  getActiveOTConfig(): Promise<OTConfig>; // lấy config đang active
   getOTConfigById(id: string): Promise<OTConfig>;
   getAllOTConfigs(): Promise<OTConfig[]>;
   createOTConfig(entity: OTConfig): Promise<void>;

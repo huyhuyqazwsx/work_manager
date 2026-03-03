@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { OTConfig as PrismaOTConfig } from '@prisma/client';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
 import {
   BasePrismaRepository,
   PrismaDelegate,
 } from '../../../../infrastructure/repository/base/base-prisma.repository';
 import { OTConfig } from '../../../../domain/entities/ot-config.entity';
+import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
 import { OTConfigMapper } from '../mappers/ot-config.mapper';
-import { ContractType } from '../../../../domain/enum/enum';
+import { OTConfig as PrismaOTConfig } from '@prisma/client';
 
 @Injectable()
 export class PrismaOTConfigRepository extends BasePrismaRepository<
@@ -21,11 +20,9 @@ export class PrismaOTConfigRepository extends BasePrismaRepository<
     );
   }
 
-  async findByContractType(
-    contractType: ContractType,
-  ): Promise<OTConfig | null> {
-    const raw: PrismaOTConfig | null = await this.prisma.oTConfig.findUnique({
-      where: { contractType },
+  async findActive(): Promise<OTConfig | null> {
+    const raw = await this.prisma.oTConfig.findFirst({
+      where: { isActive: true },
     });
     return raw ? OTConfigMapper.toDomain(raw) : null;
   }

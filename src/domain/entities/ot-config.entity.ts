@@ -1,17 +1,13 @@
-import { ContractType } from '../enum/enum';
-
 export class OTConfig {
   constructor(
     public readonly id: string,
-    public readonly contractType: ContractType,
     public maxHoursPerDay: number,
     public maxHoursPerMonth: number,
     public maxHoursPerYear: number,
-    public salaryMultiplier: number,
     public isActive: boolean,
   ) {}
 
-  validateRequest(params: {
+  validateHours(params: {
     requestedHours: number;
     usedHoursToday: number;
     usedHoursThisMonth: number;
@@ -21,8 +17,8 @@ export class OTConfig {
 
     if (params.usedHoursToday + params.requestedHours > this.maxHoursPerDay) {
       errors.push(
-        `Vượt giới hạn OT/ngày. Tối đa: ${this.maxHoursPerDay}h, ` +
-          `Đã dùng: ${params.usedHoursToday}h, Xin thêm: ${params.requestedHours}h`,
+        `Exceeded daily OT limit. Maximum: ${this.maxHoursPerDay}h, ` +
+          `Already used: ${params.usedHoursToday}h, Requested: ${params.requestedHours}h`,
       );
     }
 
@@ -31,8 +27,8 @@ export class OTConfig {
       this.maxHoursPerMonth
     ) {
       errors.push(
-        `Vượt giới hạn OT/tháng. Tối đa: ${this.maxHoursPerMonth}h, ` +
-          `Đã dùng: ${params.usedHoursThisMonth}h, Xin thêm: ${params.requestedHours}h`,
+        `Exceeded monthly OT limit. Maximum: ${this.maxHoursPerMonth}h, ` +
+          `Already used: ${params.usedHoursThisMonth}h, Requested: ${params.requestedHours}h`,
       );
     }
 
@@ -41,11 +37,15 @@ export class OTConfig {
       this.maxHoursPerYear
     ) {
       errors.push(
-        `Vượt giới hạn OT/năm. Tối đa: ${this.maxHoursPerYear}h, ` +
-          `Đã dùng: ${params.usedHoursThisYear}h, Xin thêm: ${params.requestedHours}h`,
+        `Exceeded yearly OT limit. Maximum: ${this.maxHoursPerYear}h, ` +
+          `Already used: ${params.usedHoursThisYear}h, Requested: ${params.requestedHours}h`,
       );
     }
 
     return { valid: errors.length === 0, errors };
+  }
+
+  isOvernightValid(hoursDay1: number, hoursDay2: number): boolean {
+    return hoursDay1 <= this.maxHoursPerDay && hoursDay2 <= this.maxHoursPerDay;
   }
 }

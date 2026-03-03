@@ -49,19 +49,23 @@ export class PolicyService implements IPolicyService {
     id: string,
     entity: Partial<LeaveConfig>,
   ): Promise<void> {
-    await this.getLeaveConfigById(id); // check existence first
+    await this.getLeaveConfigById(id);
     return this.policyRepository.updateLeaveConfig(id, entity);
   }
 
   async deleteLeaveConfig(id: string): Promise<void> {
-    await this.getLeaveConfigById(id); // check existence first
+    await this.getLeaveConfigById(id);
     return this.policyRepository.deleteLeaveConfig(id);
   }
 
   // ===== OTConfig =====
 
-  async getOTConfig(contractType: ContractType): Promise<OTConfig | null> {
-    return this.policyRepository.findOTConfigByContractType(contractType);
+  async getActiveOTConfig(): Promise<OTConfig> {
+    const config = await this.policyRepository.findActiveOTConfig();
+    if (!config) {
+      throw new NotFoundException('No active OT configuration found');
+    }
+    return config;
   }
 
   async getOTConfigById(id: string): Promise<OTConfig> {
@@ -81,12 +85,12 @@ export class PolicyService implements IPolicyService {
   }
 
   async updateOTConfig(id: string, entity: Partial<OTConfig>): Promise<void> {
-    await this.getOTConfigById(id); // check existence first
+    await this.getOTConfigById(id);
     return this.policyRepository.updateOTConfig(id, entity);
   }
 
   async deleteOTConfig(id: string): Promise<void> {
-    await this.getOTConfigById(id); // check existence first
+    await this.getOTConfigById(id);
     return this.policyRepository.deleteOTConfig(id);
   }
 
@@ -116,17 +120,20 @@ export class PolicyService implements IPolicyService {
     id: string,
     entity: Partial<PaidPersonalLeaveEvent>,
   ): Promise<void> {
-    const all = await this.policyRepository.findAllPaidPersonalEvents();
-    const existing = all.find((e) => e.id === id);
-    if (!existing) {
-      throw new NotFoundException(
-        `PaidPersonalLeaveEvent not found with id "${id}"`,
-      );
-    }
+    await this.getPaidPersonalEventById(id);
     return this.policyRepository.updatePaidPersonalEvent(id, entity);
   }
 
   async deletePaidPersonalEvent(id: string): Promise<void> {
+    await this.getPaidPersonalEventById(id);
+    return this.policyRepository.deletePaidPersonalEvent(id);
+  }
+
+  // ===== Private =====
+
+  private async getPaidPersonalEventById(
+    id: string,
+  ): Promise<PaidPersonalLeaveEvent> {
     const all = await this.policyRepository.findAllPaidPersonalEvents();
     const existing = all.find((e) => e.id === id);
     if (!existing) {
@@ -134,6 +141,6 @@ export class PolicyService implements IPolicyService {
         `PaidPersonalLeaveEvent not found with id "${id}"`,
       );
     }
-    return this.policyRepository.deletePaidPersonalEvent(id);
+    return existing;
   }
 }

@@ -18,7 +18,6 @@ export class PrismaPolicyRepository implements IPolicyRepository {
     private readonly otConfigRepo: PrismaOTConfigRepository,
     private readonly paidPersonalEventRepo: PrismaPaidPersonalLeaveEventRepository,
   ) {}
-
   async findLeaveConfigByContractType(
     contractType: ContractType,
   ): Promise<LeaveConfig | null> {
@@ -49,11 +48,8 @@ export class PrismaPolicyRepository implements IPolicyRepository {
   }
 
   //OTConfig
-
-  async findOTConfigByContractType(
-    contractType: ContractType,
-  ): Promise<OTConfig | null> {
-    return this.otConfigRepo.findByContractType(contractType);
+  async findActiveOTConfig(): Promise<OTConfig | null> {
+    return await this.otConfigRepo.findActive();
   }
 
   async findOTConfigById(id: string): Promise<OTConfig | null> {

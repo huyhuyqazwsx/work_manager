@@ -1,12 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
-import { ContractType } from '../../../../domain/enum/enum';
+import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class CreateOTConfigDto {
-  @ApiProperty({ enum: ContractType, example: ContractType.OFFICIAL_EMPLOYEE })
-  @IsEnum(ContractType)
-  contractType: ContractType;
-
   @ApiProperty({ example: 4 })
   @IsNumber()
   @Min(0)
@@ -21,11 +16,6 @@ export class CreateOTConfigDto {
   @IsNumber()
   @Min(0)
   maxHoursPerYear: number;
-
-  @ApiProperty({ example: 1.5 })
-  @IsNumber()
-  @Min(1)
-  salaryMultiplier: number;
 
   @ApiProperty({ example: true })
   @IsOptional()

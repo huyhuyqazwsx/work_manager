@@ -20,12 +20,6 @@ export class UpdateOTConfigDto {
   @Min(0)
   maxHoursPerYear?: number;
 
-  @ApiPropertyOptional({ example: 1.5 })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  salaryMultiplier?: number;
-
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()

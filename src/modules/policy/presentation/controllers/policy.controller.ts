@@ -8,7 +8,7 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as policyServiceInterface from '../../application/interfaces/policy.service.interface';
 import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
 import { OTConfig } from '../../../../domain/entities/ot-config.entity';
@@ -37,7 +37,6 @@ export class PolicyController {
 
   @Get('leave-config')
   @ApiOperation({ summary: 'Lấy tất cả cấu hình nghỉ phép' })
-  @ApiResponse({ status: 200, description: 'Danh sách LeaveConfig' })
   async getAllLeaveConfigs(): Promise<LeaveConfig[]> {
     return this.policyService.getAllLeaveConfigs();
   }
@@ -45,21 +44,13 @@ export class PolicyController {
   @Get('leave-config/:id')
   @ApiOperation({ summary: 'Lấy cấu hình nghỉ phép theo ID' })
   @ApiParam({ name: 'id', description: 'UUID của LeaveConfig' })
-  @ApiResponse({ status: 200, description: 'LeaveConfig tìm thấy' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async getLeaveConfigById(@Param('id') id: string): Promise<LeaveConfig> {
     return this.policyService.getLeaveConfigById(id);
   }
 
   @Get('leave-config/contract/:contractType')
   @ApiOperation({ summary: 'Lấy cấu hình nghỉ phép theo loại hợp đồng' })
-  @ApiParam({
-    name: 'contractType',
-    enum: ContractType,
-    description: 'Loại hợp đồng',
-  })
-  @ApiResponse({ status: 200, description: 'LeaveConfig tìm thấy' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
+  @ApiParam({ name: 'contractType', enum: ContractType })
   async getLeaveConfigByContractType(
     @Param('contractType') contractType: ContractType,
   ): Promise<LeaveConfig> {
@@ -68,8 +59,6 @@ export class PolicyController {
 
   @Post('leave-config')
   @ApiOperation({ summary: 'Tạo mới cấu hình nghỉ phép' })
-  @ApiResponse({ status: 201, description: 'Tạo thành công' })
-  @ApiResponse({ status: 409, description: 'contractType đã tồn tại' })
   async createLeaveConfig(@Body() dto: CreateLeaveConfigDto): Promise<void> {
     const entity = new LeaveConfig(
       randomUUID(),
@@ -90,8 +79,6 @@ export class PolicyController {
   @Put('leave-config/:id')
   @ApiOperation({ summary: 'Cập nhật cấu hình nghỉ phép' })
   @ApiParam({ name: 'id', description: 'UUID của LeaveConfig' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async updateLeaveConfig(
     @Param('id') id: string,
     @Body() dto: UpdateLeaveConfigDto,
@@ -102,17 +89,20 @@ export class PolicyController {
   @Delete('leave-config/:id')
   @ApiOperation({ summary: 'Xóa cấu hình nghỉ phép' })
   @ApiParam({ name: 'id', description: 'UUID của LeaveConfig' })
-  @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async deleteLeaveConfig(@Param('id') id: string): Promise<void> {
     return this.policyService.deleteLeaveConfig(id);
   }
 
   // ===== OTConfig =====
 
+  @Get('ot-config/active')
+  @ApiOperation({ summary: 'Lấy cấu hình OT đang active' })
+  async getActiveOTConfig(): Promise<OTConfig> {
+    return this.policyService.getActiveOTConfig();
+  }
+
   @Get('ot-config')
   @ApiOperation({ summary: 'Lấy tất cả cấu hình OT' })
-  @ApiResponse({ status: 200, description: 'Danh sách OTConfig' })
   async getAllOTConfigs(): Promise<OTConfig[]> {
     return this.policyService.getAllOTConfigs();
   }
@@ -120,39 +110,18 @@ export class PolicyController {
   @Get('ot-config/:id')
   @ApiOperation({ summary: 'Lấy cấu hình OT theo ID' })
   @ApiParam({ name: 'id', description: 'UUID của OTConfig' })
-  @ApiResponse({ status: 200, description: 'OTConfig tìm thấy' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async getOTConfigById(@Param('id') id: string): Promise<OTConfig> {
     return this.policyService.getOTConfigById(id);
   }
 
-  @Get('ot-config/contract/:contractType')
-  @ApiOperation({ summary: 'Lấy cấu hình OT theo loại hợp đồng' })
-  @ApiParam({
-    name: 'contractType',
-    enum: ContractType,
-    description: 'Loại hợp đồng',
-  })
-  @ApiResponse({ status: 200, description: 'OTConfig tìm thấy' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
-  async getOTConfigByContractType(
-    @Param('contractType') contractType: ContractType,
-  ): Promise<OTConfig | null> {
-    return this.policyService.getOTConfig(contractType);
-  }
-
   @Post('ot-config')
   @ApiOperation({ summary: 'Tạo mới cấu hình OT' })
-  @ApiResponse({ status: 201, description: 'Tạo thành công' })
-  @ApiResponse({ status: 409, description: 'contractType đã tồn tại' })
   async createOTConfig(@Body() dto: CreateOTConfigDto): Promise<void> {
     const entity = new OTConfig(
       randomUUID(),
-      dto.contractType,
       dto.maxHoursPerDay,
       dto.maxHoursPerMonth,
       dto.maxHoursPerYear,
-      dto.salaryMultiplier,
       dto.isActive ?? true,
     );
     return this.policyService.createOTConfig(entity);
@@ -161,8 +130,6 @@ export class PolicyController {
   @Put('ot-config/:id')
   @ApiOperation({ summary: 'Cập nhật cấu hình OT' })
   @ApiParam({ name: 'id', description: 'UUID của OTConfig' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async updateOTConfig(
     @Param('id') id: string,
     @Body() dto: UpdateOTConfigDto,
@@ -173,8 +140,6 @@ export class PolicyController {
   @Delete('ot-config/:id')
   @ApiOperation({ summary: 'Xóa cấu hình OT' })
   @ApiParam({ name: 'id', description: 'UUID của OTConfig' })
-  @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async deleteOTConfig(@Param('id') id: string): Promise<void> {
     return this.policyService.deleteOTConfig(id);
   }
@@ -183,20 +148,13 @@ export class PolicyController {
 
   @Get('paid-personal-event')
   @ApiOperation({ summary: 'Lấy tất cả sự kiện nghỉ việc riêng có lương' })
-  @ApiResponse({ status: 200, description: 'Danh sách PaidPersonalLeaveEvent' })
   async getAllPaidPersonalEvents(): Promise<PaidPersonalLeaveEvent[]> {
     return this.policyService.findAllPaidPersonalEvents();
   }
 
   @Get('paid-personal-event/:code')
   @ApiOperation({ summary: 'Lấy sự kiện nghỉ việc riêng theo code' })
-  @ApiParam({
-    name: 'code',
-    enum: PaidPersonalEventCode,
-    description: 'Mã sự kiện',
-  })
-  @ApiResponse({ status: 200, description: 'PaidPersonalLeaveEvent tìm thấy' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
+  @ApiParam({ name: 'code', enum: PaidPersonalEventCode })
   async getPaidPersonalEventByCode(
     @Param('code') code: PaidPersonalEventCode,
   ): Promise<PaidPersonalLeaveEvent> {
@@ -205,8 +163,6 @@ export class PolicyController {
 
   @Post('paid-personal-event')
   @ApiOperation({ summary: 'Tạo mới sự kiện nghỉ việc riêng' })
-  @ApiResponse({ status: 201, description: 'Tạo thành công' })
-  @ApiResponse({ status: 409, description: 'Code đã tồn tại' })
   async createPaidPersonalEvent(
     @Body() dto: CreatePaidPersonalEventDto,
   ): Promise<void> {
@@ -223,8 +179,6 @@ export class PolicyController {
   @Put('paid-personal-event/:id')
   @ApiOperation({ summary: 'Cập nhật sự kiện nghỉ việc riêng' })
   @ApiParam({ name: 'id', description: 'UUID của PaidPersonalLeaveEvent' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async updatePaidPersonalEvent(
     @Param('id') id: string,
     @Body() dto: UpdatePaidPersonalEventDto,
@@ -235,8 +189,6 @@ export class PolicyController {
   @Delete('paid-personal-event/:id')
   @ApiOperation({ summary: 'Xóa sự kiện nghỉ việc riêng' })
   @ApiParam({ name: 'id', description: 'UUID của PaidPersonalLeaveEvent' })
-  @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async deletePaidPersonalEvent(@Param('id') id: string): Promise<void> {
     return this.policyService.deletePaidPersonalEvent(id);
   }

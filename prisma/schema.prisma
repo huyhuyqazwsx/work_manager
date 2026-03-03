@@ -95,37 +95,78 @@ model PaidPersonalLeaveUsage {
 // ============================================
 // OVERTIME MANAGEMENT
 // ============================================
+model OTPlan {
+  id            String    @id @default(uuid()) @db.Uuid
+  departmentId  String    @db.Uuid
+  managerId     String    @db.Uuid
+  reason        String
+  status        String    @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED
+  rejectedBy    String?   @db.Uuid
+  rejectedAt    DateTime?
+  rejectionNote String?
+  approvedBy    String?   @db.Uuid
+  approvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-model OvertimeType {
-  id             String   @id @default(uuid()) @db.Uuid
-  code           String   @unique  // WEEKDAY | WEEKEND | HOLIDAY
-  name           String
-  isCompensation Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  tickets OTTicket[]
 
-  @@map("overtime_types")
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([status])
+  @@map("ot_plans")
 }
 
-model OvertimeRequest {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @db.Uuid
-  workDate   DateTime
-  startTime  DateTime
-  endTime    DateTime
-  totalHours Float
-  otTypeId   String    @db.Uuid
-  reason     String?
-  status     String    // PENDING | REJECTED | APPROVED | DRAFT
-  approvedBy String?   @db.Uuid
-  approvedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+model OTTicket {
+  id          String    @id @default(uuid()) @db.Uuid
+  planId      String    @db.Uuid
+  userId      String    @db.Uuid
+  otType      String    // COMPENSATION | SALARY
+  workDate    DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  startTime   DateTime
+  endTime     DateTime
+  totalHours  Float
+  checkIn     DateTime?
+  checkOut    DateTime?
+  actualHours Float?
+  plan        String?
+  result      String?
+  status      String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | VERIFIED | REJECTED | EXPIRED | CANCELLED
+  verifiedBy  String?   @db.Uuid
+  verifiedAt  DateTime?
+  rejectNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  otPlan OTPlan @relation(fields: [planId], references: [id])
+
+  @@index([planId])
   @@index([userId])
   @@index([workDate])
   @@index([status])
-  @@map("overtime_requests")
+  @@map("ot_tickets")
 }
+
+// ============================================
+// OVERTIME CONFIG
+// ============================================
+
+model OTConfig {
+  id               String   @id @default(uuid()) @db.Uuid
+  maxHoursPerDay   Float    @default(4)
+  maxHoursPerMonth Float    @default(40)
+  maxHoursPerYear  Float
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("ot_config")
+}
+
+// ============================================
+// COMPENSATION BALANCE
+// ============================================
 
 model CompensationBalance {
   id        String   @id @default(uuid()) @db.Uuid
@@ -136,38 +177,17 @@ model CompensationBalance {
   @@map("compensation_balances")
 }
 
-// Lịch sử thay đổi compensation balance
 model CompensationTransaction {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  hours     Float    // dương = cộng từ OT
-  type      String   // EARNED | USED
-  sourceId  String   @db.Uuid // overtimeRequestId hoặc leaveRequestId
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  hours          Float
+  type           String   // EARNED | USED
+  otTicketId     String?  @db.Uuid
+  leaveRequestId String?  @db.Uuid
+  createdAt      DateTime @default(now())
 
   @@index([userId])
   @@map("compensation_transactions")
-}
-
-// ============================================
-// ATTENDANCE
-// ============================================
-
-model Attendance {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @db.Uuid
-  workDate  DateTime
-  checkIn   DateTime?
-  checkOut  DateTime?
-  status    String    // SCHEDULED | IN_PROGRESS | COMPLETED
-  plan      String?
-  result    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@unique([userId, workDate])
-  @@index([userId, workDate])
-  @@map("attendances")
 }
 
 // ============================================
@@ -192,7 +212,7 @@ model Holiday {
 }
 
 // ============================================
-// LEAVE & OT CONFIG
+// LEAVE CONFIG
 // ============================================
 
 model LeaveConfig {
@@ -211,20 +231,6 @@ model LeaveConfig {
   updatedAt            DateTime @updatedAt
 
   @@map("leave_configs")
-}
-
-model OTConfig {
-  id               String   @id @default(uuid()) @db.Uuid
-  contractType     String   @unique
-  maxHoursPerDay   Float
-  maxHoursPerMonth Float
-  maxHoursPerYear  Float
-  salaryMultiplier Float    @default(1.5)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("ot_configs")
 }
 
 model PaidPersonalLeaveEvent {

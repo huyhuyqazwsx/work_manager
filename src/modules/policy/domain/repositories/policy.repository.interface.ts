@@ -23,9 +23,7 @@ export interface IPolicyRepository {
   deleteLeaveConfig(id: string): Promise<void>;
 
   // ===== OTConfig =====
-  findOTConfigByContractType(
-    contractType: ContractType,
-  ): Promise<OTConfig | null>;
+  findActiveOTConfig(): Promise<OTConfig | null>;
 
   findOTConfigById(id: string): Promise<OTConfig | null>;
 
