@@ -1,6 +1,6 @@
-import { IBaseRepository } from '../../../../domain/repositories/base.repository';
-import { Holiday } from '../../../../domain/entities/holiday.entity';
-import { HolidayType } from '../../../../domain/enum/enum';
+import { IBaseRepository } from '@domain/repositories/base.repository';
+import { Holiday } from '@domain/entities/holiday.entity';
+import { HolidayType } from '@domain/enum/enum';
 
 export interface IHolidayRepository extends IBaseRepository<Holiday> {
   // Query

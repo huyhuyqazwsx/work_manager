@@ -1,6 +1,6 @@
-import { LeaveRequest } from '../../../../domain/entities/leave_request.entity';
+import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { LeaveRequest as PrismaLeaveRequest } from '@prisma/client';
-import { LeaveRequestStatus } from '../../../../domain/enum/enum';
+import { LeaveRequestStatus } from '@domain/enum/enum';
 
 export class LeaveRequestMapper {
   static toDomain(raw: PrismaLeaveRequest): LeaveRequest {

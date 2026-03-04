@@ -1,8 +1,5 @@
-import {
-  InviteForm,
-  InviteImportResult,
-} from '../../../../domain/type/invite.types';
-import { UserStatus } from '../../../../domain/enum/enum';
+import { InviteForm, InviteImportResult } from '@domain/type/invite.types';
+import { UserStatus } from '@domain/enum/enum';
 
 export interface IInviteService {
   inviteTemplateDownload(): Buffer;

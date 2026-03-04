@@ -7,15 +7,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { IUserService } from '../interfaces/user.service.interface';
-import { UserAuth } from '../../../../domain/entities/userAuth.entity';
+import { UserAuth } from '@domain/entities/userAuth.entity';
 import * as userRepositoryInterface from '../../domain/repositories/user.repository.interface';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
-import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
+import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserRole, UserStatus } from '../../../../domain/enum/enum';
-import { InviteForm } from '../../../../domain/type/invite.types';
+import { UserRole, UserStatus } from '@domain/enum/enum';
+import { InviteForm } from '@domain/type/invite.types';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 
 @Injectable()

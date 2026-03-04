@@ -3,10 +3,10 @@ import { IDepartmentRepository } from '../../domain/repositories/department.repo
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../../infrastructure/repository/base/base-prisma.repository';
-import { Department } from '../../../../domain/entities/department.entity';
+} from '@infra/repository/base/base-prisma.repository';
+import { Department } from '@domain/entities/department.entity';
 import { Department as PrismaDepartment } from '@prisma/client';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { DepartmentMapper } from './department.mapper';
 
 @Injectable()

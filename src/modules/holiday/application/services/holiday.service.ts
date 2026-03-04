@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { BaseCrudService } from '../../../../infrastructure/crudservice/base-crud.service';
-import { Holiday } from '../../../../domain/entities/holiday.entity';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { Holiday } from '@domain/entities/holiday.entity';
 import { IHolidayService } from '../interfaces/holiday.service.interface';
 import * as holidayRepositoryInterface from '../../domain/repositories/holiday.repository.interface';
-import { HolidayType } from '../../../../domain/enum/enum';
+import { HolidayType } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -71,7 +71,7 @@ export class HolidayService
 
     const compensatoryHoliday = new Holiday(
       randomUUID(),
-      `${originalHoliday.name} (Nghỉ bù)`,
+      `${originalHoliday.name} (Compensatory)`,
       compensatoryDate,
       originalHoliday.type,
       originalHoliday.session,

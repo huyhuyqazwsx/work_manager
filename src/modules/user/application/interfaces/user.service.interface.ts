@@ -1,7 +1,7 @@
-import { UserAuth } from '../../../../domain/entities/userAuth.entity';
+import { UserAuth } from '@domain/entities/userAuth.entity';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
-import { InviteForm } from '../../../../domain/type/invite.types';
-import { UserRole } from '../../../../domain/enum/enum';
+import { InviteForm } from '@domain/type/invite.types';
+import { UserRole } from '@domain/enum/enum';
 
 export interface IUserService {
   findUserById(id: string): Promise<UserAuth | null>;

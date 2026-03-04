@@ -10,13 +10,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as policyServiceInterface from '../../application/interfaces/policy.service.interface';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
-import {
-  ContractType,
-  PaidPersonalEventCode,
-} from '../../../../domain/enum/enum';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
+import { OTConfig } from '@domain/entities/ot-config.entity';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
+import { ContractType, PaidPersonalEventCode } from '@domain/enum/enum';
 import { UpdateLeaveConfigDto } from '../../application/dto/update-leave-config.dto';
 import { randomUUID } from 'node:crypto';
 import { CreateLeaveConfigDto } from '../../application/dto/create-leave-config.dto';

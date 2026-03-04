@@ -1,5 +1,5 @@
 import { OTConfig as PrismaOTConfig } from '@prisma/client';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
+import { OTConfig } from '@domain/entities/ot-config.entity';
 
 export class OTConfigMapper {
   static toDomain(raw: PrismaOTConfig): OTConfig {

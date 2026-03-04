@@ -1,7 +1,7 @@
-import { Holiday } from '../../../domain/entities/holiday.entity';
+import { Holiday } from '@domain/entities/holiday.entity';
 
 import { Holiday as PrismaHoliday } from '@prisma/client';
-import { HolidaySession, HolidayType } from '../../../domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 
 export class HolidayMapper {
   static toDomain(raw: PrismaHoliday): Holiday {

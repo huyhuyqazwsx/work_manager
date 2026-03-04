@@ -14,16 +14,13 @@ import { existsSync } from 'node:fs';
 import { readFileSync } from 'fs';
 
 import * as ExcelJS from 'exceljs';
-import {
-  InviteForm,
-  InviteImportError,
-} from '../../../../domain/type/invite.types';
+import { InviteForm, InviteImportError } from '@domain/type/invite.types';
 import { InviteFormDto } from '../dto/import-invite.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { InviteUsersResult } from '../../../user/application/dto/invite-user-result.dto';
 import { InviteImportResponse } from '../dto/invite-import.response';
-import { UserStatus } from '../../../../domain/enum/enum';
+import { UserStatus } from '@domain/enum/enum';
 
 @Injectable()
 export class InviteService implements IInviteService {

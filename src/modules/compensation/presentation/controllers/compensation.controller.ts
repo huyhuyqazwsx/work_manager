@@ -11,7 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CompensationBalance } from '../../../../domain/entities/compensation_balance.entity';
+import { CompensationBalance } from '@domain/entities/compensation_balance.entity';
 import * as compensationServiceInterface from '../../application/interfaces/compensation.service.interface';
 import { randomUUID } from 'node:crypto';
 import { CreateCompensationDto } from '../../application/dto/create-compensation.dto';

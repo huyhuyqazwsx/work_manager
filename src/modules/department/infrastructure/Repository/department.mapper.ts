@@ -1,4 +1,4 @@
-import { Department } from '../../../../domain/entities/department.entity';
+import { Department } from '@domain/entities/department.entity';
 import { Department as PrismaDepartment } from '@prisma/client';
 
 export class DepartmentMapper {

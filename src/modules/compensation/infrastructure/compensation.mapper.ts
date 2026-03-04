@@ -1,5 +1,5 @@
 import { CompensationBalance as PrismaCompensationBalance } from '@prisma/client';
-import { CompensationBalance } from '../../../domain/entities/compensation_balance.entity';
+import { CompensationBalance } from '@domain/entities/compensation_balance.entity';
 
 export class CompensationBalanceMapper {
   static toDomain(raw: PrismaCompensationBalance): CompensationBalance {

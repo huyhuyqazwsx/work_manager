@@ -1,6 +1,6 @@
 import { LeaveConfig as PrismaLeaveConfig } from '@prisma/client';
-import { ContractType } from '../../../../domain/enum/enum';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
+import { ContractType } from '@domain/enum/enum';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
 
 export class LeaveConfigMapper {
   static toDomain(raw: PrismaLeaveConfig): LeaveConfig {

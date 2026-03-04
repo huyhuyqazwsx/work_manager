@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
 import { IJwtService } from '../interfaces/jwt.service.inteface';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
-import { JwtPayload, TokenPair } from '../../../../domain/type/jwt.types';
+import { JwtPayload, TokenPair } from '@domain/type/jwt.types';
 import { StringValue } from 'ms';
 
 @Injectable()

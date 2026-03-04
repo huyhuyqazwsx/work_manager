@@ -9,7 +9,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { DepartmentService } from '../../application/services/department.service';
-import { Department } from '../../../../domain/entities/department.entity';
+import { Department } from '@domain/entities/department.entity';
 import { CreateDepartmentDto } from '../../application/dto/create-department.dto';
 import { randomUUID } from 'node:crypto';
 import { UpdateDepartmentDto } from '../../application/dto/update-department.dto';

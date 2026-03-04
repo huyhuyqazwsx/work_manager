@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PaidPersonalLeaveEvent as PrismaPaidPersonalLeaveEvent } from '@prisma/client';
-import { PaidPersonalEventCode } from '../../../../domain/enum/enum';
+import { PaidPersonalEventCode } from '@domain/enum/enum';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../../infrastructure/repository/base/base-prisma.repository';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+} from '@infra/repository/base/base-prisma.repository';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { PaidPersonalLeaveEventMapper } from '../mappers/paid-personal-leave-event.mapper';
 
 @Injectable()

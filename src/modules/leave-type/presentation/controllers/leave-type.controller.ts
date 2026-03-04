@@ -15,7 +15,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import * as leaveTypeServiceInterface from '../../application/interfaces/leave-type.service.interface';
-import { LeaveType } from '../../../../domain/entities/leave_type.entity';
+import { LeaveType } from '@domain/entities/leave_type.entity';
 import { CreateLeaveTypeDto } from '../../application/dto/create-leave-type.dto';
 import { UpdateLeaveTypeDto } from '../../application/dto/update-leave-type.dto';
 

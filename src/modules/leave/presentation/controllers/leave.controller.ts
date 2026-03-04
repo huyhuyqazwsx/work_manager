@@ -9,7 +9,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import * as leaveServiceInterface from '../../application/interfaces/leave.service.interface';
-import { LeaveRequest } from '../../../../domain/entities/leave_request.entity';
+import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { LeaveEligibilityResponseDto } from '../../application/dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../../application/dto/create-leave-request.dto';

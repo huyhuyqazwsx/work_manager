@@ -1,10 +1,7 @@
-import {
-  ContractType,
-  PaidPersonalEventCode,
-} from '../../../../domain/enum/enum';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
+import { ContractType, PaidPersonalEventCode } from '@domain/enum/enum';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
+import { OTConfig } from '@domain/entities/ot-config.entity';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
 
 export interface IPolicyRepository {
   // ===== LeaveConfig =====

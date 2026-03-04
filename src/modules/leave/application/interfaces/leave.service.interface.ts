@@ -1,5 +1,5 @@
-import { IBaseCrudService } from '../../../../domain/crudservice/base-crud.service.interface';
-import { LeaveRequest } from '../../../../domain/entities/leave_request.entity';
+import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
+import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 

@@ -1,8 +1,5 @@
 import { InviteUsersResult } from '../../../user/application/dto/invite-user-result.dto';
-import {
-  InviteForm,
-  InviteImportError,
-} from '../../../../domain/type/invite.types';
+import { InviteForm, InviteImportError } from '@domain/type/invite.types';
 
 export class InviteImportResponse {
   total: number;

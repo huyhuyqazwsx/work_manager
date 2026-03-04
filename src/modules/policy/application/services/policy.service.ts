@@ -1,13 +1,10 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { IPolicyService } from '../interfaces/policy.service.interface';
 import * as policyRepositoryInterface from '../../domain/repositories/policy.repository.interface';
-import {
-  ContractType,
-  PaidPersonalEventCode,
-} from '../../../../domain/enum/enum';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
+import { ContractType, PaidPersonalEventCode } from '@domain/enum/enum';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
+import { OTConfig } from '@domain/entities/ot-config.entity';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
 
 @Injectable()
 export class PolicyService implements IPolicyService {

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { BaseCrudService } from '../../../../infrastructure/crudservice/base-crud.service';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import * as compensationRepositoryInterface from '../../domain/repositories/compensation.repository.interface';
-import { CompensationBalance } from '../../../../domain/entities/compensation_balance.entity';
+import { CompensationBalance } from '@domain/entities/compensation_balance.entity';
 import { ICompensationService } from '../interfaces/compensation.service.interface';
 
 @Injectable()

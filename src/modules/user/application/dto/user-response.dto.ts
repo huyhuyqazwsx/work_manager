@@ -1,4 +1,4 @@
-import { UserStatus } from '../../../../domain/enum/enum';
+import { UserStatus } from '@domain/enum/enum';
 
 export class UserResponseDto {
   id: string;

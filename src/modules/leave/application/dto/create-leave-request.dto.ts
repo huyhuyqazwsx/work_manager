@@ -1,9 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
-import {
-  LeaveTypeCode,
-  LeaveRequestStatus,
-} from '../../../../domain/enum/enum';
+import { LeaveTypeCode, LeaveRequestStatus } from '@domain/enum/enum';
 
 export class CreateLeaveRequestDto {
   @ApiProperty({ example: 'uuid-user-id' })

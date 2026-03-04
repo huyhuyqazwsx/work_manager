@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../../infrastructure/repository/base/base-prisma.repository';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+} from '@infra/repository/base/base-prisma.repository';
+import { OTConfig } from '@domain/entities/ot-config.entity';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { OTConfigMapper } from '../mappers/ot-config.mapper';
 import { OTConfig as PrismaOTConfig } from '@prisma/client';
 

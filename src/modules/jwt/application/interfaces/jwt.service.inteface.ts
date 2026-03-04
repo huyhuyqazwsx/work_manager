@@ -1,4 +1,4 @@
-import { TokenPair } from '../../../../domain/type/jwt.types';
+import { TokenPair } from '@domain/type/jwt.types';
 
 export interface IJwtService {
   generateTokenPair(userId: string, role: string): Promise<TokenPair>;

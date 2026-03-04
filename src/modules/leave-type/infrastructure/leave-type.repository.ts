@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../infrastructure/repository/base/base-prisma.repository';
+} from '@infra/repository/base/base-prisma.repository';
 import { LeaveType as PrismaLeaveType } from '@prisma/client';
-import { LeaveType } from '../../../domain/entities/leave_type.entity';
+import { LeaveType } from '@domain/entities/leave_type.entity';
 import { ILeaveTypeRepository } from '../domain/repositories/leave-type.repository.interface';
-import { PrismaService } from '../../../infrastructure/database/prisma/PrismaService';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { LeaveTypeMapper } from './leave-type.mapper';
 
 @Injectable()

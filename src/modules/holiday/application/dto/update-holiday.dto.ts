@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { HolidaySession, HolidayType } from '../../../../domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 
 export class UpdateHolidayDto {
   @ApiProperty({ required: false })

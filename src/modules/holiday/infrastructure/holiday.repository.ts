@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../infrastructure/repository/base/base-prisma.repository';
-import { Holiday } from '../../../domain/entities/holiday.entity';
+} from '@infra/repository/base/base-prisma.repository';
+import { Holiday } from '@domain/entities/holiday.entity';
 import { Holiday as PrismaHoliday } from '@prisma/client';
 import { IHolidayRepository } from '../domain/repositories/holiday.repository.interface';
-import { PrismaService } from '../../../infrastructure/database/prisma/PrismaService';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { HolidayMapper } from './holiday.mapper';
-import { HolidayType } from '../../../domain/enum/enum';
+import { HolidayType } from '@domain/enum/enum';
 
 @Injectable()
 export class PrismaHolidayRepository

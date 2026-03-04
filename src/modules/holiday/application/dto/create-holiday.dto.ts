@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { HolidaySession, HolidayType } from '../../../../domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 
 export class CreateHolidayDto {
   @ApiProperty({ example: 'Tết Nguyên Đán' })

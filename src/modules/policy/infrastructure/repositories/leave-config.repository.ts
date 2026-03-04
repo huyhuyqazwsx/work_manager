@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { LeaveConfig as PrismaLeaveConfig } from '@prisma/client';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../../infrastructure/repository/base/base-prisma.repository';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
+} from '@infra/repository/base/base-prisma.repository';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
 import { LeaveConfigMapper } from '../mappers/leave-config.mapper';
-import { ContractType } from '../../../../domain/enum/enum';
+import { ContractType } from '@domain/enum/enum';
 
 @Injectable()
 export class PrismaLeaveConfigRepository extends BasePrismaRepository<

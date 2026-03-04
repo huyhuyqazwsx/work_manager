@@ -3,13 +3,10 @@ import { IPolicyRepository } from '../../domain/repositories/policy.repository.i
 import { PrismaLeaveConfigRepository } from './leave-config.repository';
 import { PrismaOTConfigRepository } from './ot-config.repository';
 import { PrismaPaidPersonalLeaveEventRepository } from './paid-personal-leave-event.repository';
-import {
-  ContractType,
-  PaidPersonalEventCode,
-} from '../../../../domain/enum/enum';
-import { LeaveConfig } from '../../../../domain/entities/leave-config.entity';
-import { OTConfig } from '../../../../domain/entities/ot-config.entity';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
+import { ContractType, PaidPersonalEventCode } from '@domain/enum/enum';
+import { LeaveConfig } from '@domain/entities/leave-config.entity';
+import { OTConfig } from '@domain/entities/ot-config.entity';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
 
 @Injectable()
 export class PrismaPolicyRepository implements IPolicyRepository {

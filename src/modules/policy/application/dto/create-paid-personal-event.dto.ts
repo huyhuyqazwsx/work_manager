@@ -7,7 +7,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { PaidPersonalEventCode } from '../../../../domain/enum/enum';
+import { PaidPersonalEventCode } from '@domain/enum/enum';
 
 export class CreatePaidPersonalEventDto {
   @ApiProperty({

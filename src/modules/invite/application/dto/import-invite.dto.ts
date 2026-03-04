@@ -7,7 +7,7 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { UserRole, ContractType } from '../../../../domain/enum/enum';
+import { UserRole, ContractType } from '@domain/enum/enum';
 
 export class InviteFormDto {
   @IsOptional()

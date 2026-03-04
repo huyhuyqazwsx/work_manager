@@ -18,10 +18,10 @@ import {
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { HolidayType } from '../../../../domain/enum/enum';
+import { HolidayType } from '@domain/enum/enum';
 import { CreateHolidayDto } from '../../application/dto/create-holiday.dto';
 import { UpdateHolidayDto } from '../../application/dto/update-holiday.dto';
-import { Holiday } from '../../../../domain/entities/holiday.entity';
+import { Holiday } from '@domain/entities/holiday.entity';
 import { CreateHolidayResponseDto } from '../../application/dto/response-create-holiday.dto';
 
 @ApiTags('Holidays')

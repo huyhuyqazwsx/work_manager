@@ -4,12 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BaseCrudService } from '../../../../infrastructure/crudservice/base-crud.service';
-import { LeaveType } from '../../../../domain/entities/leave_type.entity';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { LeaveType } from '@domain/entities/leave_type.entity';
 import * as leaveTypeServiceInterface from '../interfaces/leave-type.service.interface';
 import * as leaveTypeRepositoryInterface from '../../domain/repositories/leave-type.repository.interface';
 import { randomUUID } from 'node:crypto';
-import { LeaveTypeCode } from '../../../../domain/enum/enum';
+import { LeaveTypeCode } from '@domain/enum/enum';
 
 @Injectable()
 export class LeaveTypeService

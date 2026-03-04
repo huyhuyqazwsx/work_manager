@@ -1,6 +1,6 @@
 import { LeaveType as PrismaLeaveType } from '@prisma/client';
-import { LeaveType } from '../../../domain/entities/leave_type.entity';
-import { LeaveTypeCode } from '../../../domain/enum/enum';
+import { LeaveType } from '@domain/entities/leave_type.entity';
+import { LeaveTypeCode } from '@domain/enum/enum';
 
 export class LeaveTypeMapper {
   static toDomain(raw: PrismaLeaveType): LeaveType {

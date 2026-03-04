@@ -1,6 +1,6 @@
 import { PaidPersonalLeaveEvent as PrismaPaidPersonalLeaveEvent } from '@prisma/client';
-import { PaidPersonalEventCode } from '../../../../domain/enum/enum';
-import { PaidPersonalLeaveEvent } from '../../../../domain/entities/paid-personal-leave-event.entity';
+import { PaidPersonalEventCode } from '@domain/enum/enum';
+import { PaidPersonalLeaveEvent } from '@domain/entities/paid-personal-leave-event.entity';
 
 export class PaidPersonalLeaveEventMapper {
   static toDomain(raw: PrismaPaidPersonalLeaveEvent): PaidPersonalLeaveEvent {

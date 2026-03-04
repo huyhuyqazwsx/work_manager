@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsInt, IsNumber, Min } from 'class-validator';
-import { ContractType } from '../../../../domain/enum/enum';
+import { ContractType } from '@domain/enum/enum';
 
 export class CreateLeaveConfigDto {
   @ApiProperty({ enum: ContractType, example: ContractType.OFFICIAL_EMPLOYEE })

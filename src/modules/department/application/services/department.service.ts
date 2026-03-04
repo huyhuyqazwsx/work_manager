@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { BaseCrudService } from '../../../../infrastructure/crudservice/base-crud.service';
-import { Department } from '../../../../domain/entities/department.entity';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { Department } from '@domain/entities/department.entity';
 import * as departmentRepositoryInterface from '../../domain/repositories/department.repository.interface';
 import { IDepartmentService } from '../interfaces/department.service.interface';
 

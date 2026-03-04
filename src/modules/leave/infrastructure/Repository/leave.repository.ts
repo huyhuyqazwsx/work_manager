@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../../infrastructure/repository/base/base-prisma.repository';
+} from '@infra/repository/base/base-prisma.repository';
 import { LeaveRequest as PrismaLeaveRequest } from '@prisma/client';
-import { LeaveRequest } from '../../../../domain/entities/leave_request.entity';
+import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { ILeaveRequestRepository } from '../../domain/repositories/leave.repository.interface';
-import { PrismaService } from '../../../../infrastructure/database/prisma/PrismaService';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { LeaveRequestMapper } from './leave.mapper';
 
 @Injectable()

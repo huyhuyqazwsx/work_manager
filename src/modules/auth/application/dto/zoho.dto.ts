@@ -1,4 +1,4 @@
-import { UserStatus } from '../../../../domain/enum/enum';
+import { UserStatus } from '@domain/enum/enum';
 
 export interface ZohoTokenResponse {
   access_token: string;

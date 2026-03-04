@@ -5,22 +5,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { BaseCrudService } from '../../../../infrastructure/crudservice/base-crud.service';
-import { LeaveRequest } from '../../../../domain/entities/leave_request.entity';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { ILeaveService } from '../interfaces/leave.service.interface';
 import * as leaveRepositoryInterface from '../../domain/repositories/leave.repository.interface';
 import * as holidayServiceInterface from '../../../holiday/application/interfaces/holiday.service.interface';
-import {
-  LeaveRequestStatus,
-  LeaveTypeCode,
-  UserRole,
-} from '../../../../domain/enum/enum';
+import { LeaveRequestStatus, LeaveTypeCode, UserRole } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
 import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import * as leaveTypeServiceInterface from '../../../leave-type/application/interfaces/leave-type.service.interface';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
-import { UserAuth } from '../../../../domain/entities/userAuth.entity';
-import { LeaveType } from '../../../../domain/entities/leave_type.entity';
+import { UserAuth } from '@domain/entities/userAuth.entity';
+import { LeaveType } from '@domain/entities/leave_type.entity';
 import * as policyServiceInterface from '../../../policy/application/interfaces/policy.service.interface';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';

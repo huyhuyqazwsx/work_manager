@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import * as userServiceInterface from '../../application/interfaces/user.service.interface';
-import { UserAuth } from '../../../../domain/entities/userAuth.entity';
+import { UserAuth } from '@domain/entities/userAuth.entity';
 import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';
 import { AccessTokenGuard } from '../../../jwt/guards/access-token.guard';

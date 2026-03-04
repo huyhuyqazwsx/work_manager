@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LeaveTypeCode } from '../../../../domain/enum/enum';
+import { LeaveTypeCode } from '@domain/enum/enum';
 
 export class LeaveEligibilityResponseDto {
   @ApiProperty({
