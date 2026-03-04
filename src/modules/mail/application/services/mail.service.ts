@@ -5,12 +5,25 @@ import nodemailer, { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { VerificationEmailTemplate } from '../templates/verification-email.template';
 import { buildLeaveRequestTemplate } from '../templates/leave-request-email.template';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { EmailQueue } from '@domain/entities/email-queue.entity';
+import { PrismaEmailQueueRepository } from '@modules/mail/infrastructure/email-queue.repository';
+import { EmailType } from '@domain/enum/enum';
+import { chunk, InviteEmailPayload } from '@modules/mail/helper/mail-helper';
 
 @Injectable()
-export class MailService implements IMailService {
+export class MailService
+  extends BaseCrudService<EmailQueue>
+  implements IMailService
+{
   private readonly logger = new Logger(MailService.name);
   private transporter: Transporter<SMTPTransport.SentMessageInfo>;
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    repository: PrismaEmailQueueRepository,
+  ) {
+    super(repository);
+
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('smtp.host'),
       port: this.configService.get<number>('smtp.port'),
@@ -20,7 +33,6 @@ export class MailService implements IMailService {
         pass: this.configService.get<string>('smtp.pass'),
       },
     });
-
     this.logger.log('Mail service initialized');
   }
 
@@ -120,6 +132,40 @@ export class MailService implements IMailService {
     } catch (error) {
       this.logger.error(`Failed to send email`, error);
       throw new Error('Failed to send email');
+    }
+  }
+
+  //HANDLE QUEUE
+  async processEmailQueue(batchSize = 50): Promise<void> {
+    const jobs = await this.repository.findAll();
+    if (!jobs.length) return;
+
+    const batches = chunk(jobs, batchSize);
+
+    for (const batch of batches) {
+      await this.runInTransaction(async (tx) => {
+        await Promise.all(
+          batch.map(async (job) => {
+            switch (job.type as EmailType) {
+              case EmailType.INVITE: {
+                const payload = job.payload as unknown as InviteEmailPayload;
+                // await this.sendVerificationEmail(job.email, payload.token);
+                this.logger.log(`Verification email sent to: ${job.email}`);
+                break;
+              }
+              default:
+                this.logger.warn(`Unknown email type: ${job.type}`);
+            }
+          }),
+        );
+
+        await this.repository.deleteMany(
+          {
+            id: { in: batch.map((j) => j.id) },
+          } as unknown as Partial<EmailQueue>,
+          tx,
+        );
+      });
     }
   }
 }

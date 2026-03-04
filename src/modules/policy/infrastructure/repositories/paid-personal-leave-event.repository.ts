@@ -14,8 +14,9 @@ export class PrismaPaidPersonalLeaveEventRepository extends BasePrismaRepository
   PaidPersonalLeaveEvent,
   PrismaPaidPersonalLeaveEvent
 > {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.paidPersonalLeaveEvent as unknown as PrismaDelegate<PrismaPaidPersonalLeaveEvent>,
       PaidPersonalLeaveEventMapper,
     );

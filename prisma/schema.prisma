@@ -242,3 +242,18 @@ model PaidPersonalLeaveEvent {
 
   @@map("paid_personal_leave_events")
 }
+
+// ============================================
+// EMAIL
+// ============================================
+
+model EmailQueue {
+  id        String   @id @default(uuid())
+  email     String
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_queue")
+}

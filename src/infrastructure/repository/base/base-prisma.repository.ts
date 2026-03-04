@@ -1,5 +1,6 @@
-import { IBaseRepository } from '../../../domain/repositories/base.repository';
+import { IBaseRepository } from '@domain/repositories/base.repository';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 
 export interface IBaseMapper<Domain, Persistence> {
   toDomain(raw: Persistence): Domain;
@@ -41,13 +42,27 @@ export type PrismaDelegate<T> = {
     include?: Record<string, boolean | object>;
   }): Promise<T>;
 
+  createMany(args: {
+    data: unknown[];
+    skipDuplicates?: boolean;
+  }): Promise<{ count: number }>;
+
   update(args: {
     where: { id: string };
     data: unknown;
     include?: Record<string, boolean | object>;
   }): Promise<T>;
 
+  updateMany(args: {
+    where?: Partial<T> | Record<string, unknown>;
+    data: unknown;
+  }): Promise<{ count: number }>;
+
   delete(args: { where: { id: string } }): Promise<T>;
+
+  deleteMany(args?: {
+    where?: Partial<T> | Record<string, unknown>;
+  }): Promise<{ count: number }>;
 
   count(args?: {
     where?: Partial<T> | Record<string, unknown>;
@@ -58,10 +73,34 @@ export abstract class BasePrismaRepository<
   Domain,
   Persistence,
 > implements IBaseRepository<Domain> {
+  protected readonly prismaModel: PrismaDelegate<Persistence>;
+
   protected constructor(
-    protected readonly prismaModel: PrismaDelegate<Persistence>,
+    protected readonly prisma: PrismaService,
+    prismaModel: PrismaDelegate<Persistence>,
     protected readonly mapper?: IBaseMapper<Domain, Persistence>,
-  ) {}
+  ) {
+    this.prismaModel = prismaModel;
+  }
+
+  async runInTransaction<R>(fn: (tx: unknown) => Promise<R>): Promise<R> {
+    return this.prisma.$transaction((tx) => fn(tx));
+  }
+
+  private getModel(tx?: unknown): PrismaDelegate<Persistence> {
+    if (!tx) return this.prismaModel;
+
+    const modelName = this.getModelName();
+    return (tx as Record<string, unknown>)[
+      modelName
+    ] as PrismaDelegate<Persistence>;
+  }
+
+  private getModelName(): string {
+    const name = (this.prismaModel as unknown as { $name?: string }).$name;
+    if (!name) throw new Error('Cannot detect model name from prismaModel');
+    return name.charAt(0).toLowerCase() + name.slice(1);
+  }
 
   private toDomain(raw: Persistence): Domain {
     return this.mapper ? this.mapper.toDomain(raw) : (raw as unknown as Domain);
@@ -85,28 +124,32 @@ export abstract class BasePrismaRepository<
     throw error;
   }
 
-  async findById(id: string): Promise<Domain | null> {
-    const raw = await this.prismaModel.findUnique({ where: { id } });
+  async findById(id: string, tx?: unknown): Promise<Domain | null> {
+    const raw = await this.getModel(tx).findUnique({ where: { id } });
     if (!raw) return null;
     return this.toDomain(raw);
   }
 
-  async findAll(): Promise<Domain[]> {
-    const raws = await this.prismaModel.findMany();
+  async findAll(tx?: unknown): Promise<Domain[]> {
+    const raws = await this.getModel(tx).findMany();
     return raws.map((r) => this.toDomain(r));
   }
 
-  async save(entity: Domain): Promise<void> {
+  async save(entity: Domain, tx?: unknown): Promise<void> {
     try {
-      await this.prismaModel.create({ data: this.toPersistence(entity) });
+      await this.getModel(tx).create({ data: this.toPersistence(entity) });
     } catch (error) {
       this.handleError(error);
     }
   }
 
-  async update(id: string, entity: Partial<Domain>): Promise<void> {
+  async update(
+    id: string,
+    entity: Partial<Domain>,
+    tx?: unknown,
+  ): Promise<void> {
     try {
-      await this.prismaModel.update({
+      await this.getModel(tx).update({
         where: { id },
         data: this.toPersistence(entity),
       });
@@ -115,9 +158,45 @@ export abstract class BasePrismaRepository<
     }
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, tx?: unknown): Promise<void> {
     try {
-      await this.prismaModel.delete({ where: { id } });
+      await this.getModel(tx).delete({ where: { id } });
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  async createMany(entities: Domain[], tx?: unknown): Promise<number> {
+    try {
+      const result = await this.getModel(tx).createMany({
+        data: entities.map((e) => this.toPersistence(e)),
+      });
+      return result.count;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  async updateMany(
+    where: Partial<Domain>,
+    entity: Partial<Domain>,
+    tx?: unknown,
+  ): Promise<number> {
+    try {
+      const result = await this.getModel(tx).updateMany({
+        where,
+        data: this.toPersistence(entity),
+      });
+      return result.count;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  async deleteMany(where: Partial<Domain>, tx?: unknown): Promise<number> {
+    try {
+      const result = await this.getModel(tx).deleteMany({ where });
+      return result.count;
     } catch (error) {
       this.handleError(error);
     }

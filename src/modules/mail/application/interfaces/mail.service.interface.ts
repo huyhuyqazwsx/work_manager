@@ -1,4 +1,8 @@
-export interface IMailService {
+import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
+import { EmailQueue } from '@domain/entities/email-queue.entity';
+
+export interface IMailService extends IBaseCrudService<EmailQueue> {
+  //Send mail
   sendRawEmail(
     to: string | string[],
     subject: string,
@@ -29,4 +33,7 @@ export interface IMailService {
     },
     cc?: string | string[],
   ): Promise<void>;
+
+  //Handle queue
+  processEmailQueue(batchSize?: number): Promise<void>;
 }

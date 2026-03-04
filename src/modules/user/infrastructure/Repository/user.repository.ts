@@ -15,8 +15,12 @@ export class PrismaUserRepository
   extends BasePrismaRepository<UserAuth, PrismaUser>
   implements IUserRepository
 {
-  constructor(private readonly prisma: PrismaService) {
-    super(prisma.user as unknown as PrismaDelegate<PrismaUser>, UserMapper);
+  constructor(prisma: PrismaService) {
+    super(
+      prisma,
+      prisma.user as unknown as PrismaDelegate<PrismaUser>,
+      UserMapper,
+    );
   }
 
   async findByEmail(email: string): Promise<UserAuth | null> {
@@ -36,5 +40,21 @@ export class PrismaUserRepository
     });
 
     return raws.map((r) => UserMapper.toDomain(r));
+  }
+
+  async findByCode(code: string): Promise<UserAuth | null> {
+    const raw = await this.prisma.user.findUnique({
+      where: { code },
+    });
+    return raw ? UserMapper.toDomain(raw) : null;
+  }
+
+  async findMaxCode(): Promise<string | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { code: { startsWith: 'SG' } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    return user?.code ?? null;
   }
 }

@@ -14,12 +14,17 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
-import { UserRole, UserStatus } from '@domain/enum/enum';
+import { EmailType, UserRole, UserStatus } from '@domain/enum/enum';
 import { InviteForm } from '@domain/type/invite.types';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
+import { EmailQueue } from '@domain/entities/email-queue.entity';
+import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 
 @Injectable()
-export class UserService implements IUserService {
+export class UserService
+  extends BaseCrudService<UserAuth>
+  implements IUserService
+{
   private readonly logger = new Logger(UserService.name);
   constructor(
     @Inject('IUserRepository')
@@ -31,7 +36,10 @@ export class UserService implements IUserService {
     @Inject('IDepartmentService')
     private readonly departmentService: departmentServiceInterface.IDepartmentService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    super(userRepository);
+  }
+
   findUsersByRole(role: UserRole): Promise<UserAuth[]> {
     return this.userRepository.findByRole(role);
   }
@@ -85,49 +93,32 @@ export class UserService implements IUserService {
   }
 
   //Gửi xác thực cho email
-  async createPendingUserAndSendInvite(form: InviteForm): Promise<void> {
-    // Map department
-    let departmentId: string | null = null;
-
-    if (form.department) {
-      const department = await this.departmentService.findByName(
-        form.department,
-      );
-
-      if (!department) {
-        throw new Error('Department not found');
+  async createPendingUsersAndInvite(
+    users: UserAuth[],
+    emails: string[],
+  ): Promise<void> {
+    const ttl = this.configService.get<number>('redis.ttl.verification')!;
+    await this.runInTransaction(async (tx) => {
+      if (users.length) {
+        await this.createMany(users, tx);
       }
 
-      departmentId = department.id;
-    }
+      await this.mailService.createMany(
+        emails.map((email) => {
+          const token = randomBytes(32).toString('hex');
 
-    if (departmentId == null) throw new Error('Department not found');
+          void this.cache.set(`verification:${email}`, token, ttl);
 
-    // Generate employeeCode nếu không có
-    let code = form.employeeCode ?? null;
+          return new EmailQueue(randomUUID(), email, EmailType.INVITE, {
+            token,
+          });
+        }),
+        tx,
+      );
+    });
 
-    if (!code) {
-      code = await this.getCountCode();
-    }
-
-    const user = new UserAuth(
-      randomUUID(),
-      code,
-      form.email,
-      '', // fullName (chưa có trong form)
-      '', // gender (chưa có trong form)
-      UserStatus.PENDING,
-      form.role,
-      departmentId,
-      form.position ?? '',
-      form.contractType,
-      form.joinDate,
-      form.contractSignedDate ?? null,
-    );
-
-    await this.userRepository.save(user);
-
-    void this.resendInvite(form.email);
+    //Send email
+    void this.mailService.processEmailQueue();
   }
 
   async resendInvite(email: string) {
@@ -144,23 +135,50 @@ export class UserService implements IUserService {
   async inviteUsersFromExcel(
     invites: InviteForm[],
   ): Promise<InviteUsersResult> {
-    const result: InviteUsersResult = {
-      PENDING: [],
-      ACTIVE: [],
-      INACTIVE: [],
-    };
+    const result: InviteUsersResult = { PENDING: [], ACTIVE: [], INACTIVE: [] };
+    const users: UserAuth[] = [];
+    const emails: string[] = [];
+
+    const maxCode = await this.userRepository.findMaxCode();
+    let codeIndex = maxCode ? parseInt(maxCode.replace('SG', ''), 10) + 1 : 1;
 
     for (const invite of invites) {
       const user = await this.userRepository.findByEmail(invite.email);
 
       if (!user) {
-        await this.createPendingUserAndSendInvite(invite);
+        const department = await this.departmentService.findByName(
+          invite.department,
+        );
+        if (!department) throw new Error('Department not found');
+
+        const code = invite.employeeCode?.trim()
+          ? invite.employeeCode.trim()
+          : `SG${codeIndex++}`;
+
+        users.push(
+          new UserAuth(
+            randomUUID(),
+            code,
+            invite.email,
+            '',
+            '',
+            UserStatus.PENDING,
+            invite.role,
+            department.id,
+            invite.position ?? '',
+            invite.contractType,
+            invite.joinDate,
+            invite.contractSignedDate ?? null,
+          ),
+        );
+
+        emails.push(invite.email);
         result.PENDING.push(invite.email);
         continue;
       }
 
       if (user.isPending()) {
-        await this.resendInvite(invite.email);
+        emails.push(invite.email);
         result.PENDING.push(invite.email);
         continue;
       }
@@ -173,6 +191,10 @@ export class UserService implements IUserService {
       if (user.isInactive()) {
         result.INACTIVE.push(invite.email);
       }
+    }
+
+    if (emails.length > 0) {
+      await this.createPendingUsersAndInvite(users, emails);
     }
 
     return result;
@@ -226,9 +248,9 @@ export class UserService implements IUserService {
     return user;
   }
 
-  async getCountCode(): Promise<string> {
-    //TODO Refactor logic add
-    const count = (await this.userRepository.count()) + 1;
-    return 'SG' + count;
+  async getCountCode(offset: number = 0): Promise<string> {
+    const maxCode = await this.userRepository.findMaxCode();
+    const maxNumber = maxCode ? parseInt(maxCode.replace('SG', ''), 10) : 0;
+    return `SG${maxNumber + 1 + offset}`;
   }
 }

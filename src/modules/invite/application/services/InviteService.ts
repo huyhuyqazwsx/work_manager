@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -48,28 +47,18 @@ export class InviteService implements IInviteService {
   }
 
   async inviteSingleUser(invite: InviteForm): Promise<UserStatus> {
-    const user = await this.userService.findUserByEmail(invite.email);
+    const invites: InviteForm[] = [];
+    invites.push(invite);
 
-    if (!user) {
-      await this.userService.createPendingUserAndSendInvite(invite);
+    const result = await this.userService.inviteUsersFromExcel(invites);
 
+    if (result.PENDING.length > 0) {
       return UserStatus.PENDING;
-    }
-
-    if (user.isPending()) {
-      await this.userService.resendInvite(invite.email);
-      return UserStatus.PENDING;
-    }
-
-    if (user.isActive()) {
+    } else if (result.ACTIVE.length > 0) {
       return UserStatus.ACTIVE;
-    }
-
-    if (user.isInactive()) {
+    } else if (result.INACTIVE.length > 0) {
       return UserStatus.INACTIVE;
-    }
-
-    throw new ConflictException(`User ${invite.email} has unsupported status`);
+    } else throw new NotFoundException(`User Status not found`);
   }
 
   async importFromExcel(

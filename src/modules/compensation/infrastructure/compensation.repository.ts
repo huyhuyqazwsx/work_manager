@@ -1,10 +1,10 @@
 import {
   BasePrismaRepository,
   PrismaDelegate,
-} from '../../../infrastructure/repository/base/base-prisma.repository';
+} from '@infra/repository/base/base-prisma.repository';
 import { CompensationBalance as PrismaCompensationBalance } from '@prisma/client';
-import { CompensationBalance } from '../../../domain/entities/compensation_balance.entity';
-import { PrismaService } from '../../../infrastructure/database/prisma/PrismaService';
+import { CompensationBalance } from '@domain/entities/compensation_balance.entity';
+import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { Injectable } from '@nestjs/common';
 import { ICompensationRepository } from '../domain/repositories/compensation.repository.interface';
 import { CompensationBalanceMapper } from './compensation.mapper';
@@ -16,6 +16,7 @@ export class PrismaCompensationRepository
 {
   constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.compensationBalance as unknown as PrismaDelegate<PrismaCompensationBalance>,
       CompensationBalanceMapper,
     );

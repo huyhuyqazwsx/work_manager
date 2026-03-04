@@ -2,8 +2,9 @@ import { UserAuth } from '@domain/entities/userAuth.entity';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { InviteForm } from '@domain/type/invite.types';
 import { UserRole } from '@domain/enum/enum';
+import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 
-export interface IUserService {
+export interface IUserService extends IBaseCrudService<UserAuth> {
   findUserById(id: string): Promise<UserAuth | null>;
   findUserByEmail(email: string): Promise<UserAuth | null>;
   findUsersByRole(role: UserRole): Promise<UserAuth[]>;
@@ -14,7 +15,10 @@ export interface IUserService {
   deleteUser(id: string): Promise<void>;
 
   inviteUsersFromExcel(invites: InviteForm[]): Promise<InviteUsersResult>;
-  createPendingUserAndSendInvite(form: InviteForm): Promise<void>;
+  createPendingUsersAndInvite(
+    users: UserAuth[],
+    emails: string[],
+  ): Promise<void>;
   resendInvite(email: string): Promise<void>;
   verifyEmail(email: string, token: string): Promise<void>;
   getProfile(userId: string): Promise<UserAuth | null>;

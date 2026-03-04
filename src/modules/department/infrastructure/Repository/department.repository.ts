@@ -16,6 +16,7 @@ export class PrismaDepartmentRepository
 {
   constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.department as unknown as PrismaDelegate<PrismaDepartment>,
       DepartmentMapper,
     );

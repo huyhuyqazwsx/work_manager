@@ -14,8 +14,9 @@ export class PrismaLeaveConfigRepository extends BasePrismaRepository<
   LeaveConfig,
   PrismaLeaveConfig
 > {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.leaveConfig as unknown as PrismaDelegate<PrismaLeaveConfig>,
       LeaveConfigMapper,
     );

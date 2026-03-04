@@ -16,6 +16,7 @@ export class PrismaLeaveRequestRepository
 {
   constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.leaveRequest as unknown as PrismaDelegate<PrismaLeaveRequest>,
       LeaveRequestMapper,
     );

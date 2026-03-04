@@ -5,5 +5,7 @@ import { UserRole } from '@domain/enum/enum';
 export interface IUserRepository extends IBaseRepository<UserAuth> {
   findByEmail(email: string): Promise<UserAuth | null>;
   findByRole(role: UserRole): Promise<UserAuth[]>;
+  findByCode(code: string): Promise<UserAuth | null>;
+  findMaxCode(): Promise<string | null>;
   count(): Promise<number>;
 }

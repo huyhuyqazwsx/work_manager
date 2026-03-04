@@ -13,8 +13,9 @@ export class PrismaOTConfigRepository extends BasePrismaRepository<
   OTConfig,
   PrismaOTConfig
 > {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.oTConfig as unknown as PrismaDelegate<PrismaOTConfig>,
       OTConfigMapper,
     );

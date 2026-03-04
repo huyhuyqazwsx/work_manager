@@ -83,3 +83,7 @@ export enum CompensationTransactionType {
   EARNED = 'EARNED',
   USED = 'USED',
 }
+
+export enum EmailType {
+  INVITE = 'INVITE',
+}

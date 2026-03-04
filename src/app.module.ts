@@ -15,6 +15,7 @@ import { LeaveTypeModule } from '@modules/leave-type/leave-type.module';
 import { PolicyModule } from '@modules/policy/policy.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { CompensationModule } from '@modules/compensation/compensation.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CompensationModule } from '@modules/compensation/compensation.module';
       isGlobal: true,
       load: [configuration],
     }),
+    ScheduleModule.forRoot(),
     CacheModule,
     PrismaModule,
     AuthModule,

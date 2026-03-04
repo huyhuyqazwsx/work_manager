@@ -17,6 +17,7 @@ export class PrismaHolidayRepository
 {
   constructor(prisma: PrismaService) {
     super(
+      prisma,
       prisma.holiday as unknown as PrismaDelegate<PrismaHoliday>,
       HolidayMapper,
     );
