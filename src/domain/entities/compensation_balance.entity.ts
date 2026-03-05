@@ -25,23 +25,6 @@ export class CompensationBalance {
     }
   }
 
-  setHours(hours: number): void {
-    this.hours = hours;
-    this.touch();
-  }
-
-  hasPositiveBalance(): boolean {
-    return this.hours > 0;
-  }
-
-  hasNegativeBalance(): boolean {
-    return this.hours < 0;
-  }
-
-  isZero(): boolean {
-    return this.hours === 0;
-  }
-
   canDeduct(hours: number): boolean {
     return this.hours >= hours;
   }

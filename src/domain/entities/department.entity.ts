@@ -1,6 +1,6 @@
 export class Department {
   public readonly createdAt: Date;
-  public updatedAt: Date; // ✅ Đổi từ private _updatedAt thành public
+  public updatedAt: Date;
 
   constructor(
     public readonly id: string,

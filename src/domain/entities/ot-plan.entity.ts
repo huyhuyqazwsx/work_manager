@@ -1,5 +1,5 @@
 import { OTPlanStatus } from '../enum/enum';
-import { OTTicket } from './ot-ticket.entity';
+import { OTTicket } from '@domain/entities/ot-ticket.entity';
 
 export class OTPlan {
   public rejectedAt?: Date;
@@ -16,7 +16,7 @@ export class OTPlan {
     public rejectedBy: string | null,
     public rejectionNote: string | null,
     public approvedBy: string | null,
-    public tickets: OTTicket[] = [],
+    public tickets: OTTicket[],
     createdAt?: Date,
     updatedAt?: Date,
     rejectedAt?: Date,

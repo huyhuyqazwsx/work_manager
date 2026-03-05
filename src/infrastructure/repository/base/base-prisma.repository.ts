@@ -67,6 +67,21 @@ export type PrismaDelegate<T> = {
   count(args?: {
     where?: Partial<T> | Record<string, unknown>;
   }): Promise<number>;
+
+  aggregate(args: {
+    where?: Partial<T> | Record<string, unknown>;
+    _sum?: Partial<Record<keyof T, boolean>>;
+    _avg?: Partial<Record<keyof T, boolean>>;
+    _min?: Partial<Record<keyof T, boolean>>;
+    _max?: Partial<Record<keyof T, boolean>>;
+    _count?: Partial<Record<keyof T, boolean>> | boolean;
+  }): Promise<{
+    _sum?: Partial<Record<keyof T, number | null>>;
+    _avg?: Partial<Record<keyof T, number | null>>;
+    _min?: Partial<Record<keyof T, number | null>>;
+    _max?: Partial<Record<keyof T, number | null>>;
+    _count?: Partial<Record<keyof T, number>> | number;
+  }>;
 };
 
 export abstract class BasePrismaRepository<

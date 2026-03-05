@@ -47,7 +47,7 @@ export class OTTicket {
   }
 
   checkOutNow(result: string): void {
-    if (this.isInProgress()) {
+    if (this.isInProgress() && this.checkIn) {
       this.checkOut = new Date();
       this.result = result;
       this.actualHours = this.calculateActualHours();
@@ -85,6 +85,21 @@ export class OTTicket {
       this.status = OTTicketStatus.EXPIRED;
       this.touch();
     }
+  }
+
+  autoComplete(checkOut: Date): void {
+    if (!this.checkIn) {
+      throw new Error('Cannot auto complete ticket without check-in');
+    }
+
+    this.checkOut = checkOut;
+
+    const hours =
+      (this.checkOut.getTime() - this.checkIn.getTime()) / (1000 * 60 * 60);
+
+    this.actualHours = Math.max(0, hours);
+
+    this.status = OTTicketStatus.COMPLETED;
   }
 
   isOvernight(): boolean {

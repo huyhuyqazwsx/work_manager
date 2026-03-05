@@ -140,6 +140,7 @@ export class UserService
     const emails: string[] = [];
 
     const maxCode = await this.userRepository.findMaxCode();
+    // this.logger.debug(maxCode);
     let codeIndex = maxCode ? parseInt(maxCode.replace('SG', ''), 10) + 1 : 1;
 
     for (const invite of invites) {
@@ -151,9 +152,18 @@ export class UserService
         );
         if (!department) throw new Error('Department not found');
 
-        const code = invite.employeeCode?.trim()
-          ? invite.employeeCode.trim()
-          : `SG${codeIndex++}`;
+        let code = invite.employeeCode?.trim();
+
+        if (!code) {
+          code = `SG${codeIndex}`;
+
+          while (await this.userRepository.findByCode(code)) {
+            codeIndex++;
+            code = `SG${codeIndex}`;
+          }
+
+          codeIndex++;
+        }
 
         users.push(
           new UserAuth(

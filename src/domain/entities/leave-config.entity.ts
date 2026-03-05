@@ -45,7 +45,7 @@ export class LeaveConfig {
     return 13 - effectiveMonth;
   }
 
-  // ── Validate khi tạo request ──────────────────────────────────
+  // Validate request
 
   hasEnoughBalance(requestedDays: number, currentBalance: number): boolean {
     if (this.allowNegativeBalance) return true;

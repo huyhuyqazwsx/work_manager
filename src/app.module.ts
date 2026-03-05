@@ -16,6 +16,8 @@ import { PolicyModule } from '@modules/policy/policy.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { CompensationModule } from '@modules/compensation/compensation.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { OTTicketModule } from '@modules/ot-ticket/ot-ticket.module';
+import { OTPlanModule } from '@modules/ot-plan/ot-plan.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     LeaveTypeModule,
     StorageModule,
     CompensationModule,
+    OTTicketModule,
+    OTPlanModule,
   ],
   providers: [AppService],
 })

@@ -21,4 +21,16 @@ export class PrismaCompensationRepository
       CompensationBalanceMapper,
     );
   }
+
+  async findBalanceByUserId(
+    userId: string,
+  ): Promise<CompensationBalance | null> {
+    const raw = await this.prismaModel.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    return raw ? CompensationBalanceMapper.toDomain(raw) : null;
+  }
 }

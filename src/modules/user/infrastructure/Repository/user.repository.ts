@@ -50,11 +50,14 @@ export class PrismaUserRepository
   }
 
   async findMaxCode(): Promise<string | null> {
-    const user = await this.prisma.user.findFirst({
-      where: { code: { startsWith: 'SG' } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
-    });
-    return user?.code ?? null;
+    const result = await this.prisma.$queryRaw<{ code: string }[]>`
+      SELECT code
+      FROM "users"
+      WHERE code LIKE 'SG%'
+      ORDER BY CAST(SUBSTRING(code FROM 3) AS INTEGER) DESC
+      LIMIT 1
+    `;
+
+    return result[0]?.code ?? null;
   }
 }
