@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { Holiday } from '@domain/entities/holiday.entity';
 import { IHolidayService } from '../interfaces/holiday.service.interface';
@@ -230,7 +230,19 @@ export class HolidayService
     const end = new Date(toDate);
 
     start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const isSameDay = start.toDateString() === new Date(toDate).toDateString();
+
+    if (
+      isSameDay &&
+      fromSession === HolidaySession.AFTERNOON &&
+      toSession === HolidaySession.MORNING
+    ) {
+      throw new BadRequestException(
+        'Invalid session range: end session (Morning) cannot be before start session (Afternoon) on the same day',
+      );
+    }
 
     const totalCalendarDays =
       Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;

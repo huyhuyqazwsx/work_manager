@@ -163,10 +163,10 @@ export class MailService
                   ttl,
                 );
 
-                await this.sendVerificationEmail(
-                  job.email,
-                  payload.verificationToken,
-                );
+                // await this.sendVerificationEmail(
+                //   job.email,
+                //   payload.verificationToken,
+                // );
 
                 this.logger.log(`Verification email processed: ${job.email}`);
                 break;

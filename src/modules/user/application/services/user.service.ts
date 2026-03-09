@@ -11,7 +11,6 @@ import { UserAuth } from '@domain/entities/userAuth.entity';
 import * as userRepositoryInterface from '../../domain/repositories/user.repository.interface';
 import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ConfigService } from '@nestjs/config';
 import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as mailServiceInterface from '../../../mail/application/interfaces/mail.service.interface';
 import { EmailType, UserRole, UserStatus } from '@domain/enum/enum';
@@ -20,6 +19,7 @@ import * as departmentServiceInterface from '../../../department/application/int
 import { EmailQueue } from '@domain/entities/email-queue.entity';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
+import * as departmentRepositoryInterface from '@modules/department/domain/repositories/department.repository.interface';
 
 @Injectable()
 export class UserService
@@ -32,11 +32,12 @@ export class UserService
     private readonly userRepository: userRepositoryInterface.IUserRepository,
     @Inject('ICacheRepository')
     private readonly cache: cacheRepositoryInterface.ICacheRepository,
+    @Inject('IDepartmentRepository')
+    private readonly departmentRepository: departmentRepositoryInterface.IDepartmentRepository,
     @Inject('IMailService')
     private readonly mailService: mailServiceInterface.IMailService,
     @Inject('IDepartmentService')
     private readonly departmentService: departmentServiceInterface.IDepartmentService,
-    private readonly configService: ConfigService,
   ) {
     super(userRepository);
   }
@@ -122,10 +123,10 @@ export class UserService
 
       await this.mailService.createMany(
         emails.map((email) => {
-          const token = randomBytes(32).toString('hex');
+          const verificationToken = randomBytes(32).toString('hex');
 
           return new EmailQueue(randomUUID(), email, EmailType.INVITE, {
-            token,
+            verificationToken,
           });
         }),
         tx,
@@ -147,36 +148,46 @@ export class UserService
     invites: InviteForm[],
   ): Promise<InviteUsersResult> {
     const result: InviteUsersResult = { PENDING: [], ACTIVE: [], INACTIVE: [] };
-    const users: UserAuth[] = [];
-    const emails: string[] = [];
+
+    const allEmails = invites.map((i) => i.email);
+    const allDepartmentNames = [...new Set(invites.map((i) => i.department))];
+
+    const [accountBuckets, deptBuckets] = await Promise.all([
+      this.userRepository.classifyAccounts(allEmails),
+      this.departmentRepository.classifyDepartments(allDepartmentNames),
+    ]);
+
+    if (deptBuckets.notFound.length > 0) {
+      throw new BadRequestException(
+        `Departments not found: ${deptBuckets.notFound.join(', ')}`,
+      );
+    }
+
+    // ACTIVE / INACTIVE không cần xử lý thêm
+    result.ACTIVE.push(...accountBuckets.active);
+    result.INACTIVE.push(...accountBuckets.inactive);
+
+    // Emails cần invite: notFound (tạo mới) + pendingInSystem (resend)
+    const emailsToInvite: string[] = [];
+    const newUsers: UserAuth[] = [];
 
     const maxCode = await this.userRepository.findMaxCode();
-    // this.logger.debug(maxCode);
     let codeIndex = maxCode ? parseInt(maxCode.replace('SG', ''), 10) + 1 : 1;
 
     for (const invite of invites) {
-      const user = await this.userRepository.findByEmail(invite.email);
+      const isNew = accountBuckets.notFound.includes(invite.email);
+      const isPending = accountBuckets.pendingInSystem.includes(invite.email);
 
-      if (!user) {
-        const department = await this.departmentService.findByName(
-          invite.department,
-        );
-        if (!department) throw new Error('Department not found');
+      if (!isNew && !isPending) continue;
 
-        let code = invite.employeeCode?.trim();
+      emailsToInvite.push(invite.email);
+      result.PENDING.push(invite.email);
 
-        if (!code) {
-          code = `SG${codeIndex}`;
+      if (isNew) {
+        const deptId = deptBuckets.found[invite.department];
+        const code = invite.employeeCode?.trim() || `SG${codeIndex++}`;
 
-          while (await this.userRepository.findByCode(code)) {
-            codeIndex++;
-            code = `SG${codeIndex}`;
-          }
-
-          codeIndex++;
-        }
-
-        users.push(
+        newUsers.push(
           new UserAuth(
             randomUUID(),
             code,
@@ -185,37 +196,18 @@ export class UserService
             '',
             UserStatus.PENDING,
             invite.role,
-            department.id,
+            deptId,
             invite.position ?? '',
             invite.contractType,
             invite.joinDate,
             invite.contractSignedDate ?? null,
           ),
         );
-
-        emails.push(invite.email);
-        result.PENDING.push(invite.email);
-        continue;
-      }
-
-      if (user.isPending()) {
-        emails.push(invite.email);
-        result.PENDING.push(invite.email);
-        continue;
-      }
-
-      if (user.isActive()) {
-        result.ACTIVE.push(invite.email);
-        continue;
-      }
-
-      if (user.isInactive()) {
-        result.INACTIVE.push(invite.email);
       }
     }
 
-    if (emails.length > 0) {
-      await this.createPendingUsersAndInvite(users, emails);
+    if (emailsToInvite.length > 0) {
+      await this.createPendingUsersAndInvite(newUsers, emailsToInvite);
     }
 
     return result;

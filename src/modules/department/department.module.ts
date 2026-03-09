@@ -15,6 +15,6 @@ import { PrismaDepartmentRepository } from './infrastructure/Repository/departme
     },
   ],
   controllers: [DepartmentController],
-  exports: ['IDepartmentService'],
+  exports: ['IDepartmentService', 'IDepartmentRepository'],
 })
 export class DepartmentModule {}

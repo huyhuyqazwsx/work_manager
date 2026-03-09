@@ -18,6 +18,8 @@ import { LeaveEligibilityResponseDto } from '../../application/dto/leave-eligibi
 import { CreateLeaveRequestDto } from '../../application/dto/create-leave-request.dto';
 import { RejectLeaveRequestDto } from '../../application/dto/reject-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
+import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
 
 @ApiTags('Leave')
 @Controller('leave')
@@ -68,6 +70,13 @@ export class LeaveController {
   })
   async create(@Body() dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
     return this.leaveService.createLeaveRequest(dto);
+  }
+
+  @Post('preview')
+  async previewLeaveRequest(
+    @Body() dto: PreviewLeaveRequestDto,
+  ): Promise<PreviewLeaveResponseDto> {
+    return this.leaveService.previewLeaveRequest(dto);
   }
 
   @Patch(':id/approve')

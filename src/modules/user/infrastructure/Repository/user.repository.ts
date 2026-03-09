@@ -9,6 +9,7 @@ import {
 import { IUserRepository } from '../../domain/repositories/user.repository.interface';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { UserRole } from '@domain/enum/enum';
+import { AccountStatusBuckets } from '@domain/type/user.types';
 
 @Injectable()
 export class PrismaUserRepository
@@ -69,5 +70,50 @@ export class PrismaUserRepository
     `;
 
     return result[0]?.code ?? null;
+  }
+
+  async classifyAccounts(mails: string[]): Promise<AccountStatusBuckets> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        email: { in: mails },
+      },
+      select: {
+        email: true,
+        status: true,
+      },
+    });
+
+    // email → status
+    const userMap = new Map(users.map((u) => [u.email, u.status]));
+
+    const result: AccountStatusBuckets = {
+      pendingInSystem: [],
+      notFound: [],
+      active: [],
+      inactive: [],
+    };
+
+    for (const mail of mails) {
+      const status = userMap.get(mail);
+
+      if (!status) {
+        result.notFound.push(mail);
+        continue;
+      }
+
+      if (status === 'PENDING') {
+        result.pendingInSystem.push(mail);
+        continue;
+      }
+
+      if (status === 'ACTIVE') {
+        result.active.push(mail);
+        continue;
+      }
+
+      result.inactive.push(mail);
+    }
+
+    return result;
   }
 }

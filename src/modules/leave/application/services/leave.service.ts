@@ -26,6 +26,8 @@ import * as policyServiceInterface from '../../../policy/application/interfaces/
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
+import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
 
 @Injectable()
 export class LeaveService
@@ -224,6 +226,86 @@ export class LeaveService
     return leaveRequest;
   }
 
+  async previewLeaveRequest(
+    dto: PreviewLeaveRequestDto,
+  ): Promise<PreviewLeaveResponseDto> {
+    const startDate = new Date(dto.fromDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(dto.toDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    const leaveType = await this.leaveTypeService.findById(dto.leaveTypeId);
+    if (!leaveType) throw new NotFoundException('Leave type not found');
+
+    // Tính số ngày thực tế, nếu range không hợp lệ thì actualLeaveDays = 0
+    type LeaveCalculationResult = {
+      totalCalendarDays: number;
+      weekendDays: number;
+      holidayDays: number;
+      compensatoryDays: number;
+      actualLeaveDays: number;
+    };
+
+    let result: LeaveCalculationResult;
+
+    try {
+      result = await this.validateLeaveRequest(
+        startDate,
+        endDate,
+        dto.fromSession,
+        dto.toSession,
+      );
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+      result = {
+        actualLeaveDays: 0,
+        totalCalendarDays: 0,
+        weekendDays: 0,
+        holidayDays: 0,
+        compensatoryDays: 0,
+      };
+    }
+
+    const { actualLeaveDays } = result;
+
+    // Lấy balance hiện tại theo leaveType
+    const eligibility = await this.getLeaveEligibility(dto.userId);
+    const currentLeave = eligibility.find(
+      (e) => e.leaveTypeCode === leaveType.code,
+    );
+
+    const currentBalance = currentLeave?.remainingDays ?? 0;
+    const remainingAfterRequest =
+      currentBalance === -1 ? -1 : currentBalance - actualLeaveDays; // -1 = unlimited
+
+    const warnings: string[] = [];
+
+    if (actualLeaveDays === 0) {
+      warnings.push(
+        'No valid leave days in selected range (weekends/holidays excluded)',
+      );
+    }
+
+    if (remainingAfterRequest < 0) {
+      warnings.push(
+        `Insufficient balance: need ${actualLeaveDays} days but only ${currentBalance} remaining`,
+      );
+    } else if (remainingAfterRequest <= 2 && currentBalance !== -1) {
+      warnings.push(
+        `Low balance: only ${remainingAfterRequest} days remaining after this request`,
+      );
+    }
+
+    return {
+      actualLeaveDays,
+      remainingAfterRequest,
+      warnings,
+    };
+  }
+
   // ================ Private =========================
 
   private async handleAnnualLeave(
@@ -392,23 +474,23 @@ export class LeaveService
     endDate: Date,
     fromSession: HolidaySession,
     toSession: HolidaySession,
-  ): Promise<{ actualLeaveDays: number }> {
+  ): Promise<{
+    totalCalendarDays: number;
+    weekendDays: number;
+    holidayDays: number;
+    compensatoryDays: number;
+    actualLeaveDays: number;
+  }> {
     if (startDate > endDate) {
       throw new BadRequestException('Invalid date range');
     }
 
-    const { actualLeaveDays } = await this.holidayService.calculateLeaveDays(
+    return await this.holidayService.calculateLeaveDays(
       startDate,
       endDate,
       fromSession,
       toSession,
     );
-
-    if (actualLeaveDays <= 0) {
-      throw new BadRequestException('No valid leave days in selected range');
-    }
-
-    return { actualLeaveDays };
   }
 
   private async validateApprover(
