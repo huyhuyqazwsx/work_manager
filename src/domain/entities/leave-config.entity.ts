@@ -16,18 +16,54 @@ export class LeaveConfig {
   ) {}
 
   calculateAllowedDays(params: {
-    joinDate: Date;
+    signDate: Date | null;
     targetYear: number;
-    yearsOfService: number;
   }): number {
-    const bonusDays = this.calculateBonusDays(params.yearsOfService);
-    const totalBase = this.baseDaysPerYear + bonusDays;
+    if (!params.signDate) return 0;
 
-    if (params.joinDate.getFullYear() === params.targetYear) {
-      return this.calculateProratedDays(params.joinDate, totalBase);
-    }
+    const now = new Date();
+    const nowYear = now.getFullYear();
 
-    return totalBase;
+    if (nowYear < params.targetYear) return 0;
+
+    // signDate sau targetYear → chưa join
+    if (params.signDate > new Date(params.targetYear, 11, 31)) return 0;
+    if (params.signDate > now) return 0;
+
+    const eligibleMonths = this.calculateCompletedMonths(
+      params.signDate,
+      params.targetYear,
+      now,
+    );
+
+    const monthlyBase = this.baseDaysPerYear / 12;
+    const accruedBaseDays = Math.round(monthlyBase * eligibleMonths);
+
+    const yearsOfServiceAtTarget = this.calculateYearsOfServiceAtYear(
+      params.signDate,
+      params.targetYear,
+      now,
+    );
+
+    const bonusDays = this.calculateBonusDays(yearsOfServiceAtTarget);
+
+    return accruedBaseDays + bonusDays;
+  }
+
+  private calculateYearsOfServiceAtYear(
+    signDate: Date,
+    targetYear: number,
+    now: Date,
+  ): number {
+    const endOfTargetYear = new Date(targetYear, 11, 31);
+    const referenceDate = now < endOfTargetYear ? now : endOfTargetYear;
+
+    const MS_PER_YEAR = 1000 * 60 * 60 * 24 * 365;
+    const years = Math.floor(
+      (referenceDate.getTime() - signDate.getTime()) / MS_PER_YEAR,
+    );
+
+    return Math.max(0, years);
   }
 
   calculateBonusDays(yearsOfService: number): number {
@@ -37,12 +73,36 @@ export class LeaveConfig {
     );
   }
 
-  calculateProratedDays(joinDate: Date, totalDays: number): number {
-    if (!this.prorateByMonth) return totalDays;
-    const month = joinDate.getMonth() + 1;
-    const day = joinDate.getDate();
-    const effectiveMonth = day <= this.joinDateCutoffDay ? month : month + 1;
-    return 13 - effectiveMonth;
+  private calculateCompletedMonths(
+    signDate: Date,
+    targetYear: number,
+    now: Date,
+  ): number {
+    const yearStart = new Date(targetYear, 0, 1);
+    const yearEnd = new Date(targetYear, 11, 31);
+
+    const end =
+      now.getFullYear() === targetYear
+        ? new Date(now.getFullYear(), now.getMonth(), 1)
+        : yearEnd;
+
+    let start = signDate > yearStart ? signDate : yearStart;
+
+    const day = start.getDate();
+
+    if (day > this.joinDateCutoffDay) {
+      start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    } else {
+      start = new Date(start.getFullYear(), start.getMonth(), 1);
+    }
+
+    if (start > end) return 0;
+
+    const months =
+      (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth());
+
+    return Math.max(0, months);
   }
 
   // Validate request

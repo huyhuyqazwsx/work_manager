@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { IMailService } from '../interfaces/mail.service.interface';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
@@ -7,9 +7,10 @@ import { VerificationEmailTemplate } from '../templates/verification-email.templ
 import { buildLeaveRequestTemplate } from '../templates/leave-request-email.template';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { EmailQueue } from '@domain/entities/email-queue.entity';
-import { PrismaEmailQueueRepository } from '@modules/mail/infrastructure/email-queue.repository';
 import { EmailType } from '@domain/enum/enum';
-import { chunk, InviteEmailPayload } from '@modules/mail/helper/mail-helper';
+import { InviteEmailPayload } from '@modules/mail/helper/mail-helper';
+import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
+import * as emailQueueRepositoryInterface from '@modules/mail/domain/email-queue.repository.interface';
 
 @Injectable()
 export class MailService
@@ -20,7 +21,10 @@ export class MailService
   private transporter: Transporter<SMTPTransport.SentMessageInfo>;
   constructor(
     private configService: ConfigService,
-    repository: PrismaEmailQueueRepository,
+    @Inject('IEmailQueueRepository')
+    protected repository: emailQueueRepositoryInterface.IEmailQueueRepository,
+    @Inject('ICacheRepository')
+    private readonly cache: cacheRepositoryInterface.ICacheRepository,
   ) {
     super(repository);
 
@@ -137,35 +141,54 @@ export class MailService
 
   //HANDLE QUEUE
   async processEmailQueue(batchSize = 50): Promise<void> {
-    const jobs = await this.repository.findAll();
+    const jobs = await this.repository.getEmailQueue(batchSize);
     if (!jobs.length) return;
 
-    const batches = chunk(jobs, batchSize);
+    await this.runInTransaction(async (tx) => {
+      const successIds: string[] = [];
 
-    for (const batch of batches) {
-      await this.runInTransaction(async (tx) => {
-        await Promise.all(
-          batch.map(async (job) => {
+      await Promise.all(
+        jobs.map(async (job) => {
+          try {
             switch (job.type as EmailType) {
               case EmailType.INVITE: {
                 const payload = job.payload as unknown as InviteEmailPayload;
-                // await this.sendVerificationEmail(job.email, payload.token);
-                this.logger.log(`Verification email sent to: ${job.email}`);
+                const ttl = this.configService.get<number>(
+                  'redis.ttl.verification',
+                )!;
+
+                await this.cache.set(
+                  `verification:${job.email}`,
+                  payload.verificationToken,
+                  ttl,
+                );
+
+                await this.sendVerificationEmail(
+                  job.email,
+                  payload.verificationToken,
+                );
+
+                this.logger.log(`Verification email processed: ${job.email}`);
                 break;
               }
+
               default:
                 this.logger.warn(`Unknown email type: ${job.type}`);
             }
-          }),
-        );
 
+            successIds.push(job.id);
+          } catch (err) {
+            this.logger.error(`Email job failed: ${job.id}`, err as Error);
+          }
+        }),
+      );
+
+      if (successIds.length) {
         await this.repository.deleteMany(
-          {
-            id: { in: batch.map((j) => j.id) },
-          } as unknown as Partial<EmailQueue>,
+          { id: { in: successIds } } as unknown as Partial<EmailQueue>,
           tx,
         );
-      });
-    }
+      }
+    });
   }
 }

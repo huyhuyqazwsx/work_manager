@@ -4,13 +4,18 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { ILeaveService } from '../interfaces/leave.service.interface';
 import * as leaveRepositoryInterface from '../../domain/repositories/leave.repository.interface';
 import * as holidayServiceInterface from '../../../holiday/application/interfaces/holiday.service.interface';
-import { LeaveRequestStatus, LeaveTypeCode, UserRole } from '@domain/enum/enum';
+import {
+  HolidaySession,
+  LeaveRequestStatus,
+  UserRole,
+} from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
 import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import * as leaveTypeServiceInterface from '../../../leave-type/application/interfaces/leave-type.service.interface';
@@ -20,6 +25,7 @@ import { LeaveType } from '@domain/entities/leave_type.entity';
 import * as policyServiceInterface from '../../../policy/application/interfaces/policy.service.interface';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 
 @Injectable()
 export class LeaveService
@@ -27,6 +33,7 @@ export class LeaveService
   implements ILeaveService
 {
   private logger = new Logger('LeaveService');
+
   constructor(
     @Inject('ILeaveRequestRepository')
     private readonly leaveRepository: leaveRepositoryInterface.ILeaveRequestRepository,
@@ -56,8 +63,6 @@ export class LeaveService
 
     if (!user) throw new NotFoundException('User not found');
 
-    this.logger.debug(leaveTypes);
-
     return Promise.all(
       leaveTypes.map((leaveType) => {
         if (leaveType.isAnnualLeave()) {
@@ -86,8 +91,26 @@ export class LeaveService
     );
   }
 
+  async getLeaveRequestByManagerId(
+    managerId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedLeaveRequests> {
+    const department = await this.departmentService.findByManagerId(managerId);
+    if (!department) {
+      throw new UnauthorizedException('Manager does not manage any department');
+    }
+
+    return await this.leaveRepository.getLeaveRequestByManagerId(
+      managerId,
+      department.id,
+      page,
+      limit,
+    );
+  }
+
   async findByUserId(userId: string): Promise<LeaveRequest[]> {
-    return await this.leaveRepository.getByUserId(userId);
+    return this.leaveRepository.getByUserId(userId);
   }
 
   async createLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
@@ -103,73 +126,29 @@ export class LeaveService
     if (!leaveType) throw new NotFoundException('Leave type not found');
 
     const { actualLeaveDays } = await this.validateLeaveRequest(
-      dto,
-      user,
-      leaveType,
-    );
-
-    //Create leave request
-    let leaveRequest = new LeaveRequest(
-      randomUUID(),
-      leaveType.id,
-      dto.leaveStatus ?? LeaveRequestStatus.DRAFT,
       startDate,
       endDate,
+      dto.fromSession,
+      dto.toSession,
+    );
+
+    const leaveRequest = new LeaveRequest(
+      randomUUID(),
+      leaveType.id,
+      LeaveRequestStatus.PENDING,
+      startDate,
+      endDate,
+      dto.fromSession,
+      dto.toSession,
       actualLeaveDays,
       dto.reason ?? null,
       dto.userId,
       null,
     );
 
-    leaveRequest = await this.handleLeaveRequest(leaveRequest, user);
+    await this.leaveRepository.save(leaveRequest);
+    await this.notifyApprover(leaveRequest, user);
 
-    return leaveRequest;
-  }
-
-  async updateLeaveRequest(
-    leaveRequestId: string,
-    dto: CreateLeaveRequestDto,
-    submit: boolean = false,
-  ): Promise<LeaveRequest> {
-    let leaveRequest = await this.leaveRepository.findById(leaveRequestId);
-    if (!leaveRequest) throw new NotFoundException('Leave request not found');
-
-    if (leaveRequest.createdBy !== dto.userId) {
-      throw new BadRequestException(
-        'You are not allowed to update this leave request',
-      );
-    }
-
-    if (leaveRequest.status !== LeaveRequestStatus.DRAFT) {
-      throw new BadRequestException(
-        `Cannot update leave request with status "${leaveRequest.status}"`,
-      );
-    }
-
-    const [user, leaveType] = await Promise.all([
-      this.userService.findUserById(dto.userId),
-      this.leaveTypeService.findByCode(dto.leaveTypeCode),
-    ]);
-
-    if (!user) throw new NotFoundException('User not found');
-    if (!leaveType) throw new NotFoundException('Leave type not found');
-
-    const { actualLeaveDays } = await this.validateLeaveRequest(
-      dto,
-      user,
-      leaveType,
-    );
-
-    leaveRequest.fromDate = new Date(dto.fromDate);
-    leaveRequest.toDate = new Date(dto.toDate);
-    leaveRequest.totalDays = actualLeaveDays;
-    leaveRequest.reason = dto.reason ?? null;
-    leaveRequest.leaveTypeId = leaveType.id;
-    leaveRequest.status = submit
-      ? LeaveRequestStatus.PENDING
-      : LeaveRequestStatus.DRAFT;
-
-    leaveRequest = await this.handleLeaveRequest(leaveRequest, user);
     return leaveRequest;
   }
 
@@ -188,10 +167,9 @@ export class LeaveService
 
     await this.validateApprover(approverId, leaveRequest);
 
-    leaveRequest.status = LeaveRequestStatus.APPROVED;
-    leaveRequest.approvedBy = approverId;
+    leaveRequest.approve(approverId);
 
-    await this.leaveRepository.save(leaveRequest);
+    await this.leaveRepository.update(leaveRequestId, leaveRequest);
     return leaveRequest;
   }
 
@@ -211,15 +189,43 @@ export class LeaveService
 
     await this.validateApprover(approverId, leaveRequest);
 
-    leaveRequest.status = LeaveRequestStatus.REJECTED;
-    leaveRequest.approvedBy = approverId;
+    leaveRequest.reject(approverId);
+    if (reason) leaveRequest.updateReason(reason);
 
-    if (reason) leaveRequest.reason = reason;
-
-    await this.leaveRepository.save(leaveRequest);
+    await this.leaveRepository.update(leaveRequestId, leaveRequest);
     return leaveRequest;
   }
-  //================ Private function =========================
+
+  async cancelLeaveRequest(
+    leaveRequestId: string,
+    userId: string,
+  ): Promise<LeaveRequest> {
+    const leaveRequest = await this.leaveRepository.findById(leaveRequestId);
+    if (!leaveRequest) throw new NotFoundException('Leave request not found');
+
+    if (leaveRequest.createdBy !== userId) {
+      throw new BadRequestException(
+        'You are not allowed to cancel this leave request',
+      );
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (leaveRequest.fromDate <= today) {
+      throw new BadRequestException(
+        'Cannot cancel leave request after start date',
+      );
+    }
+
+    leaveRequest.cancel();
+
+    await this.leaveRepository.update(leaveRequestId, leaveRequest);
+    return leaveRequest;
+  }
+
+  // ================ Private =========================
+
   private async handleAnnualLeave(
     leaveType: LeaveType,
     user: UserAuth,
@@ -253,13 +259,12 @@ export class LeaveService
       };
     }
 
-    const yearsOfService = user.getYearsOfService();
     const totalAllowedDays = leaveConfig.calculateAllowedDays({
-      joinDate: user.joinDate,
+      signDate: user.contractSignedDate,
       targetYear,
-      yearsOfService,
     });
 
+    // TODO: handle used days
     const usedDays = 0;
     const remainingDays = Math.max(0, totalAllowedDays - usedDays);
 
@@ -360,58 +365,34 @@ export class LeaveService
     });
   }
 
-  private async handleLeaveRequest(
+  private async notifyApprover(
     leaveRequest: LeaveRequest,
     user: UserAuth,
-  ): Promise<LeaveRequest> {
-    if (
-      leaveRequest.status !== LeaveRequestStatus.DRAFT &&
-      leaveRequest.status !== LeaveRequestStatus.PENDING
-    ) {
-      throw new BadRequestException(
-        `Leave request cannot be processed because it is currently in "${leaveRequest.status}" status.`,
-      );
-    }
-
-    if (leaveRequest.status === LeaveRequestStatus.DRAFT) {
-      await this.leaveRepository.save(leaveRequest);
-      return leaveRequest;
-    }
-
+  ): Promise<void> {
     const department = await this.departmentService.findById(user.departmentId);
 
-    if (!department) {
-      throw new NotFoundException('Not found department of user');
-    }
+    if (!department) throw new NotFoundException('Department not found');
     if (!department.managerId) {
-      throw new NotFoundException(`Not found manager of ${department.name}`);
+      throw new NotFoundException(`Manager not found for ${department.name}`);
     }
 
-    const manager = await this.userService.findUserById(department.managerId);
+    const [manager, hr] = await Promise.all([
+      this.userService.findUserById(department.managerId),
+      this.userService.findUsersByRole(UserRole.HR),
+    ]);
 
-    const hr = await this.userService.findUsersByRole(UserRole.HR);
-
+    // TODO: send notification to manager and HR
     this.logger.debug(manager);
     this.logger.debug(hr);
-    return leaveRequest;
+    this.logger.debug(leaveRequest);
   }
 
   private async validateLeaveRequest(
-    dto: CreateLeaveRequestDto,
-    user: UserAuth,
-    leaveType: LeaveType,
+    startDate: Date,
+    endDate: Date,
+    fromSession: HolidaySession,
+    toSession: HolidaySession,
   ): Promise<{ actualLeaveDays: number }> {
-    const startDate = new Date(dto.fromDate);
-    const endDate = new Date(dto.toDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (startDate < today) {
-      throw new BadRequestException(
-        `Leave start date "${dto.fromDate}" is in the past`,
-      );
-    }
-
     if (startDate > endDate) {
       throw new BadRequestException('Invalid date range');
     }
@@ -419,53 +400,12 @@ export class LeaveService
     const { actualLeaveDays } = await this.holidayService.calculateLeaveDays(
       startDate,
       endDate,
+      fromSession,
+      toSession,
     );
 
     if (actualLeaveDays <= 0) {
       throw new BadRequestException('No valid leave days in selected range');
-    }
-
-    const targetYear = new Date().getFullYear();
-
-    let response: LeaveEligibilityResponseDto;
-
-    switch (dto.leaveTypeCode) {
-      case LeaveTypeCode.ANNUAL: {
-        response = await this.handleAnnualLeave(leaveType, user, targetYear);
-        if (!response.isEligible)
-          throw new BadRequestException(response.reason);
-        if (actualLeaveDays > response.remainingDays) {
-          throw new BadRequestException(
-            `Insufficient annual leave balance. Remaining: ${response.remainingDays}, Requested: ${actualLeaveDays}`,
-          );
-        }
-        break;
-      }
-      case LeaveTypeCode.COMPENSATORY: {
-        response = await this.handleCompensatoryLeave(leaveType, user);
-        if (!response.isEligible)
-          throw new BadRequestException(response.reason);
-        if (actualLeaveDays > response.remainingDays) {
-          throw new BadRequestException(
-            `Insufficient compensatory leave balance. Remaining: ${response.remainingDays}, Requested: ${actualLeaveDays}`,
-          );
-        }
-        break;
-      }
-      case LeaveTypeCode.PAID_PERSONAL: {
-        response = await this.handlePaidPersonalLeave(leaveType, user);
-        if (!response.isEligible)
-          throw new BadRequestException(response.reason);
-        break;
-      }
-      case LeaveTypeCode.SOCIAL_INSURANCE: {
-        response = await this.handleSocialInsuranceLeave(leaveType, user);
-        if (!response.isEligible)
-          throw new BadRequestException(response.reason);
-        break;
-      }
-      default:
-        throw new BadRequestException('Leave type is not supported');
     }
 
     return { actualLeaveDays };

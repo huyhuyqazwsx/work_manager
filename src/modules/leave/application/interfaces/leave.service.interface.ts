@@ -2,6 +2,7 @@ import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interfac
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 
 export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
   findByUserId(userId: string): Promise<LeaveRequest[]>;
@@ -21,9 +22,14 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
     approverId: string,
   ): Promise<LeaveRequest>;
 
-  updateLeaveRequest(
+  cancelLeaveRequest(
     leaveRequestId: string,
-    dto: CreateLeaveRequestDto,
-    submit: boolean,
+    userId: string,
   ): Promise<LeaveRequest>;
+
+  getLeaveRequestByManagerId(
+    managerId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedLeaveRequests>;
 }

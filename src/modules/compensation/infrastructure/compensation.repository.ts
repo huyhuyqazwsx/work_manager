@@ -25,9 +25,9 @@ export class PrismaCompensationRepository
   async findBalanceByUserId(
     userId: string,
   ): Promise<CompensationBalance | null> {
-    const raw = await this.prismaModel.findUnique({
+    const raw = await this.prismaModel.findFirst({
       where: {
-        id: userId,
+        userId: userId,
       },
     });
 

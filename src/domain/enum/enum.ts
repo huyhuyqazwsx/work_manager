@@ -19,10 +19,10 @@ export enum Gender {
 
 // Leave Request enums
 export enum LeaveRequestStatus {
-  DRAFT = 'DRAFT',
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
 }
 
 // Holiday enums

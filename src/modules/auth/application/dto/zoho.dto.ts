@@ -1,14 +1,5 @@
 import { UserStatus } from '@domain/enum/enum';
 
-export interface ZohoTokenResponse {
-  access_token: string;
-  scope: string;
-  id_token: string;
-  api_domain: string;
-  token_type: string;
-  expires_in: number;
-}
-
 export interface ZohoIdTokenPayload {
   at_hash: string;
   sub: string;

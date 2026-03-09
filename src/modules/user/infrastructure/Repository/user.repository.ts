@@ -23,6 +23,16 @@ export class PrismaUserRepository
     );
   }
 
+  async findAll(tx?: unknown): Promise<UserAuth[]> {
+    const raws = await this.getModel(tx).findMany({
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    return raws.map((r) => UserMapper.toDomain(r));
+  }
+
   async findByEmail(email: string): Promise<UserAuth | null> {
     const raw = await this.prisma.user.findUnique({
       where: { email },

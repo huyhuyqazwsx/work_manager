@@ -3,7 +3,7 @@ import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { Holiday } from '@domain/entities/holiday.entity';
 import { IHolidayService } from '../interfaces/holiday.service.interface';
 import * as holidayRepositoryInterface from '../../domain/repositories/holiday.repository.interface';
-import { HolidayType } from '@domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -217,6 +217,8 @@ export class HolidayService
   async calculateLeaveDays(
     fromDate: Date,
     toDate: Date,
+    fromSession: HolidaySession,
+    toSession: HolidaySession,
   ): Promise<{
     totalCalendarDays: number;
     weekendDays: number;
@@ -236,7 +238,6 @@ export class HolidayService
     const holidays = await this.holidayRepository.findByDateRange(start, end);
 
     const holidayDateMap = new Map<string, Holiday[]>();
-
     holidays.forEach((holiday) => {
       const key = this.getDateKey(holiday.date);
       if (!holidayDateMap.has(key)) {
@@ -254,7 +255,7 @@ export class HolidayService
       const dayOfWeek = current.getDay();
       const dateKey = this.getDateKey(current);
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const holidaysOnDate = holidayDateMap.get(dateKey) || [];
+      const holidaysOnDate = holidayDateMap.get(dateKey) ?? [];
 
       if (isWeekend) {
         weekendDays++;
@@ -272,9 +273,7 @@ export class HolidayService
           dayValue = 0.5;
         }
 
-        // Check if any is compensatory
         const hasCompensatory = holidaysOnDate.some((h) => h.isCompensatory);
-
         if (hasCompensatory) {
           compensatoryDays += dayValue;
         } else {
@@ -286,14 +285,46 @@ export class HolidayService
     }
 
     const totalHolidayDays = regularHolidayDays + compensatoryDays;
-    const actualLeaveDays = totalCalendarDays - weekendDays - totalHolidayDays;
+    let actualLeaveDays = totalCalendarDays - weekendDays - totalHolidayDays;
+
+    // Trừ session ngày đầu
+    if (fromSession === HolidaySession.AFTERNOON) {
+      const startDayOfWeek = start.getDay();
+      const startIsWeekend = startDayOfWeek === 0 || startDayOfWeek === 6;
+
+      if (!startIsWeekend) {
+        const startHolidays = holidayDateMap.get(this.getDateKey(start)) ?? [];
+        const morningCovered = startHolidays.some(
+          (h) => h.isFullDay() || h.isMorning(),
+        );
+        if (!morningCovered) {
+          actualLeaveDays -= 0.5;
+        }
+      }
+    }
+
+    // Trừ session ngày cuối
+    if (toSession === HolidaySession.MORNING) {
+      const endDayOfWeek = end.getDay();
+      const endIsWeekend = endDayOfWeek === 0 || endDayOfWeek === 6;
+
+      if (!endIsWeekend) {
+        const endHolidays = holidayDateMap.get(this.getDateKey(end)) ?? [];
+        const afternoonCovered = endHolidays.some(
+          (h) => h.isFullDay() || h.isAfternoon(),
+        );
+        if (!afternoonCovered) {
+          actualLeaveDays -= 0.5;
+        }
+      }
+    }
 
     return {
       totalCalendarDays,
       weekendDays,
       holidayDays: regularHolidayDays,
       compensatoryDays,
-      actualLeaveDays,
+      actualLeaveDays: Math.max(0, actualLeaveDays),
     };
   }
 

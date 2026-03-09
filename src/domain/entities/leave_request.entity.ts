@@ -1,4 +1,4 @@
-import { LeaveRequestStatus } from '../enum/enum';
+import { HolidaySession, LeaveRequestStatus } from '../enum/enum';
 
 export class LeaveRequest {
   public readonly createdAt: Date;
@@ -10,6 +10,8 @@ export class LeaveRequest {
     public status: LeaveRequestStatus,
     public fromDate: Date,
     public toDate: Date,
+    public fromSession: HolidaySession,
+    public toSession: HolidaySession,
     public totalDays: number,
     public reason: string | null,
     public readonly createdBy: string,
@@ -19,20 +21,12 @@ export class LeaveRequest {
   ) {
     this.createdAt = createdAt ?? new Date();
     this.approvedAt = approvedAt ?? null;
-    this.status = status ?? LeaveRequestStatus.DRAFT;
+    this.status = status ?? LeaveRequestStatus.PENDING;
     this.approvedBy = approvedBy ?? null;
   }
 
   updateReason(reason: string): void {
-    if (this.isDraft()) {
-      this.reason = reason;
-    }
-  }
-
-  submit(): void {
-    if (this.isDraft()) {
-      this.status = LeaveRequestStatus.PENDING;
-    }
+    this.reason = reason;
   }
 
   approve(approvedBy: string): void {
@@ -52,13 +46,9 @@ export class LeaveRequest {
   }
 
   cancel(): void {
-    if (this.isPending()) {
-      this.status = LeaveRequestStatus.DRAFT;
+    if (this.isApproved()) {
+      this.status = LeaveRequestStatus.CANCELLED;
     }
-  }
-
-  isDraft(): boolean {
-    return this.status === LeaveRequestStatus.DRAFT;
   }
 
   isPending(): boolean {
@@ -73,12 +63,8 @@ export class LeaveRequest {
     return this.status === LeaveRequestStatus.REJECTED;
   }
 
-  canEdit(): boolean {
-    return this.isDraft();
-  }
-
-  canSubmit(): boolean {
-    return this.isDraft();
+  isCancelled(): boolean {
+    return this.status === LeaveRequestStatus.CANCELLED;
   }
 
   canApprove(): boolean {
@@ -89,8 +75,8 @@ export class LeaveRequest {
     return this.isPending();
   }
 
-  canCancel(): boolean {
-    return this.isPending();
+  canCancel(today: Date): boolean {
+    return this.isApproved() && this.fromDate > today;
   }
 
   getDuration(): number {

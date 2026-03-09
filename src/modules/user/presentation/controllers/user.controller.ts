@@ -17,6 +17,7 @@ import { UserAuth } from '@domain/entities/userAuth.entity';
 import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';
 import { AccessTokenGuard } from '../../../jwt/guards/access-token.guard';
+import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 
 @Controller('user')
 export class UserController {
@@ -34,7 +35,7 @@ export class UserController {
   }
 
   @Get()
-  async findAll(): Promise<UserAuth[]> {
+  async findAll(): Promise<UserResponseDto[]> {
     return this.userService.findAllUsers();
   }
 

@@ -18,7 +18,7 @@ import {
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { HolidayType } from '@domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 import { CreateHolidayDto } from '../../application/dto/create-holiday.dto';
 import { UpdateHolidayDto } from '../../application/dto/update-holiday.dto';
 import { Holiday } from '@domain/entities/holiday.entity';
@@ -128,9 +128,13 @@ export class HolidayController {
   })
   @ApiQuery({ name: 'fromDate', required: true, example: '2026-01-01' })
   @ApiQuery({ name: 'toDate', required: true, example: '2026-01-05' })
+  @ApiQuery({ name: 'fromSession', required: true, enum: HolidaySession })
+  @ApiQuery({ name: 'toSession', required: true, enum: HolidaySession })
   async calculateLeaveDays(
     @Query('fromDate') fromDate: string,
     @Query('toDate') toDate: string,
+    @Query('fromSession') fromSession: HolidaySession,
+    @Query('toSession') toSession: HolidaySession,
   ): Promise<{
     fromDate: string;
     toDate: string;
@@ -143,7 +147,12 @@ export class HolidayController {
     const start = new Date(fromDate);
     const end = new Date(toDate);
 
-    const result = await this.holidayService.calculateLeaveDays(start, end);
+    const result = await this.holidayService.calculateLeaveDays(
+      start,
+      end,
+      fromSession,
+      toSession,
+    );
 
     return {
       fromDate,

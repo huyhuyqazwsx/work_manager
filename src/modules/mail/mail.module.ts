@@ -8,8 +8,11 @@ import { MailWorker } from '@modules/mail/application/workers/mail.worker';
 @Module({
   controllers: [MailController],
   providers: [
-    PrismaEmailQueueRepository,
     MailWorker,
+    {
+      provide: 'IEmailQueueRepository',
+      useClass: PrismaEmailQueueRepository,
+    },
     {
       provide: 'IMailService',
       useClass: MailService,

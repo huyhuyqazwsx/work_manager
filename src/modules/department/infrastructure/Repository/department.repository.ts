@@ -29,4 +29,11 @@ export class PrismaDepartmentRepository
 
     return raw ? DepartmentMapper.toDomain(raw) : null;
   }
+
+  async findByManagerId(managerId: string): Promise<Department | null>{
+    const raw = await this.prismaModel.findFirst({
+      where: { managerId: managerId },
+    });
+    return raw ? DepartmentMapper.toDomain(raw) : null;
+  }
 }

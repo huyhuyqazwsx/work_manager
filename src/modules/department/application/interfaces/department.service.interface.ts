@@ -3,4 +3,5 @@ import { Department } from '@domain/entities/department.entity';
 
 export interface IDepartmentService extends IBaseCrudService<Department> {
   findByName(name: string): Promise<Department | null>;
+  findByManagerId(id: string): Promise<Department | null>;
 }

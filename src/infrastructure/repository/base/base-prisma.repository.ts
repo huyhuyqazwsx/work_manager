@@ -102,7 +102,7 @@ export abstract class BasePrismaRepository<
     return this.prisma.$transaction((tx) => fn(tx));
   }
 
-  private getModel(tx?: unknown): PrismaDelegate<Persistence> {
+  protected getModel(tx?: unknown): PrismaDelegate<Persistence> {
     if (!tx) return this.prismaModel;
 
     const modelName = this.getModelName();

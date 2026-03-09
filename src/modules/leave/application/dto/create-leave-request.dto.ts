@@ -1,10 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
-import { LeaveTypeCode, LeaveRequestStatus } from '@domain/enum/enum';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
+import { HolidaySession, LeaveTypeCode } from '@domain/enum/enum';
 
 export class CreateLeaveRequestDto {
   @ApiProperty({ example: 'uuid-user-id' })
-  @IsString()
+  @IsUUID()
   userId: string;
 
   @ApiProperty({ enum: LeaveTypeCode })
@@ -19,13 +25,13 @@ export class CreateLeaveRequestDto {
   @IsDateString()
   toDate: string;
 
-  @ApiPropertyOptional({
-    enum: LeaveRequestStatus,
-    default: LeaveRequestStatus.DRAFT,
-  })
-  @IsEnum(LeaveRequestStatus)
-  @IsOptional()
-  leaveStatus?: LeaveRequestStatus;
+  @ApiProperty({ enum: HolidaySession, example: HolidaySession.MORNING })
+  @IsEnum(HolidaySession)
+  fromSession: HolidaySession;
+
+  @ApiProperty({ enum: HolidaySession, example: HolidaySession.AFTERNOON })
+  @IsEnum(HolidaySession)
+  toSession: HolidaySession;
 
   @ApiPropertyOptional({ example: 'Personal work' })
   @IsString()

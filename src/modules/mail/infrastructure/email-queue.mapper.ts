@@ -1,13 +1,9 @@
 import { EmailQueue } from '@domain/entities/email-queue.entity';
 
 import { EmailQueue as PrismaEmailQueue } from '@prisma/client';
-import { IBaseMapper } from '@infra/repository/base/base-prisma.repository';
 
-export class EmailQueueMapper implements IBaseMapper<
-  EmailQueue,
-  PrismaEmailQueue
-> {
-  toDomain(raw: PrismaEmailQueue): EmailQueue {
+export class EmailQueueMapper {
+  static toDomain(raw: PrismaEmailQueue): EmailQueue {
     return new EmailQueue(
       raw.id,
       raw.email,
@@ -17,7 +13,7 @@ export class EmailQueueMapper implements IBaseMapper<
     );
   }
 
-  toPersistence(entity: EmailQueue) {
+  static toPersistence(entity: EmailQueue) {
     return {
       id: entity.id,
       email: entity.email,

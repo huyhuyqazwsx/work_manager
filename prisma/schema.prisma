@@ -58,18 +58,20 @@ model LeaveType {
 }
 
 model LeaveRequest {
-  id                    String    @id @default(uuid()) @db.Uuid
-  leaveTypeId           String    @db.Uuid
-  status                String    // DRAFT | PENDING | APPROVED | REJECTED
+  id                    String          @id @default(uuid()) @db.Uuid
+  leaveTypeId           String          @db.Uuid
+  status                String          // PENDING | APPROVED | REJECTED | CANCELLED
   reason                String?
   fromDate              DateTime
   toDate                DateTime
+  fromSession           String         // FULL | MORNING | AFTERNOON
+  toSession             String          // FULL | MORNING | AFTERNOON
   totalDays             Float
-  createdBy             String    @db.Uuid
-  createdAt             DateTime  @default(now())
-  approvedBy            String?   @db.Uuid
+  createdBy             String          @db.Uuid
+  createdAt             DateTime        @default(now())
+  approvedBy            String?         @db.Uuid
   approvedAt            DateTime?
-  paidPersonalEventCode String?   // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL | null
+  paidPersonalEventCode String?         // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL | null
 
   @@index([createdBy, leaveTypeId])
   @@index([status])

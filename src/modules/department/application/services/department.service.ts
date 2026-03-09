@@ -18,4 +18,8 @@ export class DepartmentService
   async findByName(name: string): Promise<Department | null> {
     return await this.departmentRepository.findByName(name);
   }
+
+  async findByManagerId(id: string): Promise<Department | null> {
+    return await this.departmentRepository.findByManagerId(id);
+  }
 }

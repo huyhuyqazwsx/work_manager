@@ -1,6 +1,6 @@
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { LeaveRequest as PrismaLeaveRequest } from '@prisma/client';
-import { LeaveRequestStatus } from '@domain/enum/enum';
+import { HolidaySession, LeaveRequestStatus } from '@domain/enum/enum';
 
 export class LeaveRequestMapper {
   static toDomain(raw: PrismaLeaveRequest): LeaveRequest {
@@ -10,6 +10,8 @@ export class LeaveRequestMapper {
       raw.status as LeaveRequestStatus,
       raw.fromDate,
       raw.toDate,
+      raw.fromSession as HolidaySession,
+      raw.toSession as HolidaySession,
       raw.totalDays,
       raw.reason,
       raw.createdBy,

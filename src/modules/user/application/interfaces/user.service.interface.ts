@@ -3,12 +3,13 @@ import { InviteUsersResult } from '../dto/invite-user-result.dto';
 import { InviteForm } from '@domain/type/invite.types';
 import { UserRole } from '@domain/enum/enum';
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
+import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 
 export interface IUserService extends IBaseCrudService<UserAuth> {
   findUserById(id: string): Promise<UserAuth | null>;
   findUserByEmail(email: string): Promise<UserAuth | null>;
   findUsersByRole(role: UserRole): Promise<UserAuth[]>;
-  findAllUsers(): Promise<UserAuth[]>;
+  findAllUsers(): Promise<UserResponseDto[]>;
   createUser(user: UserAuth): Promise<void>;
   createUserFromOAuth(user: UserAuth): Promise<void>;
   updateUser(id: string, user: Partial<UserAuth>): Promise<void>;

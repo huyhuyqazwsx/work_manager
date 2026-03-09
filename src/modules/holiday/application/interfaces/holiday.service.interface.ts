@@ -1,6 +1,6 @@
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 import { Holiday } from '@domain/entities/holiday.entity';
-import { HolidayType } from '@domain/enum/enum';
+import { HolidaySession, HolidayType } from '@domain/enum/enum';
 
 export interface IHolidayService extends IBaseCrudService<Holiday> {
   // Query
@@ -30,6 +30,8 @@ export interface IHolidayService extends IBaseCrudService<Holiday> {
   calculateLeaveDays(
     fromDate: Date,
     toDate: Date,
+    fromSession: HolidaySession,
+    toSession: HolidaySession,
   ): Promise<{
     totalCalendarDays: number;
     weekendDays: number;

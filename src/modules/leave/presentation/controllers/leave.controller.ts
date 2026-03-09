@@ -7,14 +7,19 @@ import {
   ParseUUIDPipe,
   Post,
   Patch,
+  ParseIntPipe,
+  Query,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import * as leaveServiceInterface from '../../application/interfaces/leave.service.interface';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LeaveEligibilityResponseDto } from '../../application/dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../../application/dto/create-leave-request.dto';
 import { RejectLeaveRequestDto } from '../../application/dto/reject-leave-request.dto';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 
+@ApiTags('Leave')
 @Controller('leave')
 export class LeaveController {
   constructor(
@@ -23,8 +28,9 @@ export class LeaveController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Get all leave requests' })
   async findAll(): Promise<LeaveRequest[]> {
-    return await this.leaveService.findAll();
+    return this.leaveService.findAll();
   }
 
   @Get('eligibility/:userId')
@@ -35,33 +41,33 @@ export class LeaveController {
     return this.leaveService.getLeaveEligibility(userId);
   }
 
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Get leave requests by user' })
+  async findByUserId(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+  ): Promise<LeaveRequest[]> {
+    return this.leaveService.findByUserId(userId);
+  }
+
+  @Get('manager/:managerId')
+  async getByManager(
+    @Param('managerId', ParseUUIDPipe) managerId: string,
+
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ): Promise<PaginatedLeaveRequests> {
+    return this.leaveService.getLeaveRequestByManagerId(managerId, page, limit);
+  }
+
   @Post()
-  @ApiOperation({ summary: 'Create leave request as draft' })
+  @ApiOperation({ summary: 'Submit leave request' })
   @ApiResponse({
     status: 201,
-    description: 'Leave request created successfully',
+    description: 'Leave request submitted successfully',
     type: LeaveRequest,
   })
   async create(@Body() dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
     return this.leaveService.createLeaveRequest(dto);
-  }
-
-  @Patch(':id/draft')
-  @ApiOperation({ summary: 'Update draft leave request' })
-  async updateDraft(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: CreateLeaveRequestDto,
-  ): Promise<LeaveRequest> {
-    return this.leaveService.updateLeaveRequest(id, dto, false);
-  }
-
-  @Patch(':id/submit')
-  @ApiOperation({ summary: 'Submit draft leave request' })
-  async submit(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: CreateLeaveRequestDto,
-  ): Promise<LeaveRequest> {
-    return this.leaveService.updateLeaveRequest(id, dto, true);
   }
 
   @Patch(':id/approve')
@@ -82,7 +88,18 @@ export class LeaveController {
     return this.leaveService.rejectLeaveRequest(
       id,
       dto.approverId,
-      dto.reason ?? null,
+      dto.reason ?? undefined,
     );
+  }
+
+  @Patch(':id/cancel')
+  @ApiOperation({
+    summary: 'Cancel approved leave request (before start date)',
+  })
+  async cancel(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body('userId', new ParseUUIDPipe()) userId: string,
+  ): Promise<LeaveRequest> {
+    return this.leaveService.cancelLeaveRequest(id, userId);
   }
 }

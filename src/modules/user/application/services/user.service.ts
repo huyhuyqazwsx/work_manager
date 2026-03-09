@@ -19,6 +19,7 @@ import { InviteForm } from '@domain/type/invite.types';
 import * as departmentServiceInterface from '../../../department/application/interfaces/department.service.interface';
 import { EmailQueue } from '@domain/entities/email-queue.entity';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
+import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 
 @Injectable()
 export class UserService
@@ -59,9 +60,26 @@ export class UserService
     return await this.userRepository.findByEmail(email);
   }
 
-  async findAllUsers(): Promise<UserAuth[]> {
+  async findAllUsers(): Promise<UserResponseDto[]> {
     this.logger.log('Finding all users');
-    return await this.userRepository.findAll();
+
+    const users = await this.userRepository.findAll();
+    const departments = await this.departmentService.findAll();
+
+    const departmentMap = new Map(departments.map((d) => [d.id, d.code]));
+
+    return users.map((user) => ({
+      id: user.id,
+      code: user.code,
+      email: user.email,
+      fullName: user.fullName,
+      status: user.status,
+      role: user.role,
+      departmentCode: departmentMap.get(user.departmentId) ?? '',
+      contractType: user.contractType,
+      joinDate: user.joinDate,
+      contractSignedDate: user.contractSignedDate,
+    }));
   }
 
   async createUser(user: UserAuth): Promise<void> {
@@ -97,7 +115,6 @@ export class UserService
     users: UserAuth[],
     emails: string[],
   ): Promise<void> {
-    const ttl = this.configService.get<number>('redis.ttl.verification')!;
     await this.runInTransaction(async (tx) => {
       if (users.length) {
         await this.createMany(users, tx);
@@ -107,8 +124,6 @@ export class UserService
         emails.map((email) => {
           const token = randomBytes(32).toString('hex');
 
-          void this.cache.set(`verification:${email}`, token, ttl);
-
           return new EmailQueue(randomUUID(), email, EmailType.INVITE, {
             token,
           });
@@ -116,20 +131,16 @@ export class UserService
         tx,
       );
     });
-
-    //Send email
-    void this.mailService.processEmailQueue();
   }
 
   async resendInvite(email: string) {
     const verificationToken = randomBytes(32).toString('hex');
     this.logger.log(`Verification token: ${verificationToken}`);
 
-    const ttl = this.configService.get<number>('redis.ttl.verification')!;
-
-    await this.cache.set(`verification:${email}`, verificationToken, ttl);
-
-    // await this.mailService.sendVerificationEmail(email, verificationToken);
+    const emailQueue = new EmailQueue(randomUUID(), email, EmailType.INVITE, {
+      verificationToken,
+    });
+    await this.mailService.create(emailQueue);
   }
 
   async inviteUsersFromExcel(
