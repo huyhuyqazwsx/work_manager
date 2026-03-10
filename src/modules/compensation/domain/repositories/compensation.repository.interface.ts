@@ -2,5 +2,8 @@ import { CompensationBalance } from '@domain/entities/compensation_balance.entit
 import { IBaseRepository } from '@domain/repositories/base.repository';
 
 export interface ICompensationRepository extends IBaseRepository<CompensationBalance> {
-  findBalanceByUserId(userId: string): Promise<CompensationBalance | null>;
+  findBalanceByUserId(
+    userId: string,
+    tx?: unknown,
+  ): Promise<CompensationBalance | null>;
 }

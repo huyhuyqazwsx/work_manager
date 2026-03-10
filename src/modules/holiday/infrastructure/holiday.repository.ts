@@ -141,27 +141,41 @@ export class PrismaHolidayRepository
     return raws ? HolidayMapper.toDomain(raws) : null;
   }
 
-  async findCompensatoryNearDate(
-    originalId: string,
-    targetDate: Date,
-  ): Promise<Holiday | null> {
-    const start = new Date(targetDate);
-    start.setDate(start.getDate() - 2);
-
-    const end = new Date(targetDate);
-    end.setDate(end.getDate() + 2);
-
-    const raw = await this.prismaModel.findFirst({
+  async findCompensatoryNearDates(
+    inputs: { id: string; date: Date }[],
+  ): Promise<Holiday[]> {
+    const raws = await this.prismaModel.findMany({
       where: {
         isCompensatory: true,
-        originalHolidayId: originalId,
-        date: {
-          gte: start,
-          lte: end,
-        },
+        OR: inputs.map(({ id, date }) => ({
+          originalHolidayId: id,
+          date: {
+            gte: new Date(new Date(date).setDate(date.getDate() - 2)),
+            lte: new Date(new Date(date).setDate(date.getDate() + 2)),
+          },
+        })),
       },
     });
 
-    return raw ? HolidayMapper.toDomain(raw) : null;
+    return raws.map((r) => HolidayMapper.toDomain(r));
+  }
+
+  async findByDates(dates: Date[]): Promise<Holiday[]> {
+    const raws = await this.prismaModel.findMany({
+      where: {
+        OR: dates.map((date) => {
+          const start = new Date(date);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(date);
+          end.setHours(23, 59, 59, 999);
+
+          return {
+            date: { gte: start, lte: end },
+          };
+        }),
+      },
+    });
+
+    return raws.map((r) => HolidayMapper.toDomain(r));
   }
 }

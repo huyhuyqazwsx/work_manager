@@ -103,6 +103,11 @@ model OTPlan {
   managerId     String    @db.Uuid
   reason        String
   status        String    @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED
+  startDate     DateTime  @db.Date
+  endDate       DateTime  @db.Date
+  startTime     String    // HH:mm
+  endTime       String    // HH:mm
+  userIds       String[]  // danh sách userId
   rejectedBy    String?   @db.Uuid
   rejectedAt    DateTime?
   rejectionNote String?
@@ -123,18 +128,17 @@ model OTTicket {
   id          String    @id @default(uuid()) @db.Uuid
   planId      String    @db.Uuid
   userId      String    @db.Uuid
-  otType      String    // COMPENSATION | SALARY
-  workDate    DateTime  @db.Date
-  endDate     DateTime  @db.Date
-  startTime   DateTime
-  endTime     DateTime
+  otType      String?    // COMPENSATION | SALARY
+  workDate    DateTime  @db.Date  // ngày làm việc
+  startTime   DateTime            // datetime đầy đủ
+  endTime     DateTime            // datetime đầy đủ (có thể sang ngày hôm sau nếu overnight)
   totalHours  Float
   checkIn     DateTime?
   checkOut    DateTime?
   actualHours Float?
   plan        String?
   result      String?
-  status      String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | VERIFIED | REJECTED | EXPIRED | CANCELLED
+  status      String    @default("SCHEDULED")
   verifiedBy  String?   @db.Uuid
   verifiedAt  DateTime?
   rejectNote  String?

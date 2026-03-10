@@ -9,7 +9,6 @@ import { IOTTicketService } from '../interfaces/ot-ticket.service.interface';
 import * as otTicketRepositoryInterface from '../../domain/repositories/ot-ticket.repository.interface';
 import * as compensationServiceInterface from '../../../compensation/application/interfaces/compensation.service.interface';
 import { OTTicket } from '@domain/entities/ot-ticket.entity';
-import { OTTicketStatus } from '@domain/enum/enum';
 
 @Injectable()
 export class OTTicketService
@@ -71,7 +70,7 @@ export class OTTicketService
     }
 
     ticket.checkInNow(plan);
-    await this.otTicketRepository.save(ticket);
+    await this.otTicketRepository.update(ticketId, ticket);
     return ticket;
   }
 
@@ -95,7 +94,7 @@ export class OTTicketService
     }
 
     ticket.checkOutNow(result);
-    await this.otTicketRepository.save(ticket);
+    await this.otTicketRepository.update(ticketId, ticket);
     return ticket;
   }
 
@@ -109,15 +108,18 @@ export class OTTicketService
     }
 
     ticket.verify(managerId);
-    await this.otTicketRepository.save(ticket);
 
-    // Cộng vào quỹ nếu COMPENSATION
-    if (ticket.isCompensation() && ticket.actualHours) {
-      await this.compensationService.earnHours(
-        ticket.userId,
-        ticket.actualHours,
-      );
-    }
+    await this.otTicketRepository.runInTransaction(async (tx) => {
+      await this.otTicketRepository.update(ticketId, ticket, tx);
+
+      if (ticket.isCompensation() && ticket.actualHours) {
+        await this.compensationService.earnHours(
+          ticket.userId,
+          ticket.actualHours,
+          tx,
+        );
+      }
+    });
 
     return ticket;
   }
@@ -132,7 +134,7 @@ export class OTTicketService
     }
 
     ticket.rejectByManager(note);
-    await this.otTicketRepository.save(ticket);
+    await this.otTicketRepository.update(ticketId, ticket);
     return ticket;
   }
 
@@ -152,48 +154,62 @@ export class OTTicketService
     }
 
     ticket.cancel();
-    await this.otTicketRepository.save(ticket);
+    await this.otTicketRepository.update(ticketId, ticket);
 
     return ticket;
   }
 
+  //TODO implement cron job handle
   async processOTTicketLifecycle(): Promise<void> {
-    const [scheduled, inProgress] = await Promise.all([
-      this.otTicketRepository.findByStatus(OTTicketStatus.SCHEDULED),
-      this.otTicketRepository.findByStatus(OTTicketStatus.IN_PROGRESS),
-    ]);
+    const BATCH_SIZE = 50;
+    let offset = 0;
 
-    const tickets = [...scheduled, ...inProgress];
+    while (true) {
+      const tickets = await this.otTicketRepository.findPendingLifecycleBatch(
+        BATCH_SIZE,
+        offset,
+      );
 
-    const now = new Date();
-    const expiredAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      if (!tickets.length) break;
 
-    for (const ticket of tickets) {
-      if (
-        ticket.isScheduled() &&
-        ticket.startTime &&
-        ticket.startTime < expiredAt
-      ) {
-        ticket.expire();
-        await this.otTicketRepository.save(ticket);
-        continue;
-      }
+      const now = new Date();
+      const expiredAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      if (ticket.isInProgress() && ticket.checkIn) {
-        const maxAllowed = new Date(
-          ticket.checkIn.getTime() + 24 * 60 * 60 * 1000,
-        );
+      const toUpdate: OTTicket[] = [];
 
-        if (now > maxAllowed) {
-          const autoCheckout = new Date(
-            ticket.checkIn.getTime() +
-              (ticket.totalHours ?? 0) * 60 * 60 * 1000,
+      for (const ticket of tickets) {
+        if (
+          ticket.isScheduled() &&
+          ticket.startTime &&
+          ticket.startTime < expiredAt
+        ) {
+          ticket.expire();
+          toUpdate.push(ticket);
+          continue;
+        }
+
+        if (ticket.isInProgress() && ticket.checkIn) {
+          const maxAllowed = new Date(
+            ticket.checkIn.getTime() + 24 * 60 * 60 * 1000,
           );
 
-          ticket.autoComplete(autoCheckout);
-          await this.otTicketRepository.save(ticket);
+          if (now > maxAllowed) {
+            const autoCheckout = new Date(
+              ticket.checkIn.getTime() +
+                (ticket.totalHours ?? 0) * 60 * 60 * 1000,
+            );
+            ticket.autoComplete(autoCheckout);
+            toUpdate.push(ticket);
+          }
         }
       }
+
+      if (toUpdate.length) {
+        await this.otTicketRepository.updateManyTickets(toUpdate);
+      }
+
+      if (tickets.length < BATCH_SIZE) break;
+      offset += BATCH_SIZE;
     }
   }
 }

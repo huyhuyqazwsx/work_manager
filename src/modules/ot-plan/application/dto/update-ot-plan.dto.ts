@@ -1,52 +1,12 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsDateString,
-  IsEnum,
   IsOptional,
   IsString,
   IsUUID,
-  ValidateNested,
+  Matches,
 } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { OTType } from '@domain/enum/enum';
-import { Type } from 'class-transformer';
-
-export class UpdateOTTicketItemDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  userId?: string;
-
-  @ApiPropertyOptional({ enum: OTType })
-  @IsOptional()
-  @IsEnum(OTType)
-  otType?: OTType;
-
-  @ApiPropertyOptional({ example: '2024-01-15' })
-  @IsOptional()
-  @IsDateString()
-  workDate?: string;
-
-  @ApiPropertyOptional({ example: '2024-01-15' })
-  @IsOptional()
-  @IsDateString()
-  endDate?: string;
-
-  @ApiPropertyOptional({ example: '2024-01-15T18:00:00Z' })
-  @IsOptional()
-  @IsDateString()
-  startTime?: string;
-
-  @ApiPropertyOptional({ example: '2024-01-15T22:00:00Z' })
-  @IsOptional()
-  @IsDateString()
-  endTime?: string;
-}
 
 export class UpdateOTPlanDto {
   @ApiPropertyOptional()
@@ -54,10 +14,33 @@ export class UpdateOTPlanDto {
   @IsString()
   reason?: string;
 
-  @ApiPropertyOptional({ type: [UpdateOTTicketItemDto] })
+  @ApiPropertyOptional({ example: '2024-01-15' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2024-01-20' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ example: '18:00' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'startTime must be HH:mm',
+  })
+  startTime?: string;
+
+  @ApiPropertyOptional({ example: '22:00' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'endTime must be HH:mm' })
+  endTime?: string;
+
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpdateOTTicketItemDto)
-  tickets?: UpdateOTTicketItemDto[];
+  @IsUUID('4', { each: true })
+  userIds?: string[];
 }

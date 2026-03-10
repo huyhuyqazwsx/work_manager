@@ -9,6 +9,7 @@ import { OTPlan } from '@domain/entities/ot-plan.entity';
 import { OTPlanMapper } from './ot-plan.mapper';
 import { OTPlanStatus } from '@domain/enum/enum';
 import { IOTPlanRepository } from '@modules/ot-plan/domain/ot-plan.repository.interface';
+import { OTTicketMapper } from '@modules/ot-ticket/infrastructure/ot-ticket.mapper';
 
 @Injectable()
 export class PrismaOTPlanRepository
@@ -21,6 +22,19 @@ export class PrismaOTPlanRepository
       prisma.oTPlan as unknown as PrismaDelegate<PrismaOTPlan>,
       OTPlanMapper,
     );
+  }
+
+  async findById(id: string): Promise<OTPlan | null> {
+    const raw = await this.prisma.oTPlan.findUnique({
+      where: { id },
+      include: { tickets: true },
+    });
+
+    if (!raw) return null;
+
+    const plan = OTPlanMapper.toDomain(raw);
+    plan.tickets = raw.tickets.map((r) => OTTicketMapper.toDomain(r));
+    return plan;
   }
 
   async findByManagerId(managerId: string): Promise<OTPlan[]> {

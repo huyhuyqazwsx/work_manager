@@ -8,6 +8,7 @@ import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { Injectable } from '@nestjs/common';
 import { ICompensationRepository } from '../domain/repositories/compensation.repository.interface';
 import { CompensationBalanceMapper } from './compensation.mapper';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 @Injectable()
 export class PrismaCompensationRepository
@@ -24,11 +25,10 @@ export class PrismaCompensationRepository
 
   async findBalanceByUserId(
     userId: string,
+    tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance | null> {
-    const raw = await this.prismaModel.findFirst({
-      where: {
-        userId: userId,
-      },
+    const raw = await this.getModel(tx).findFirst({
+      where: { userId },
     });
 
     return raw ? CompensationBalanceMapper.toDomain(raw) : null;

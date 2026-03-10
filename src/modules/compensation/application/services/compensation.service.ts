@@ -4,6 +4,7 @@ import { CompensationBalance } from '@domain/entities/compensation_balance.entit
 import { ICompensationService } from '@modules/compensation/application/interfaces/compensation.service.interface';
 import * as compensationRepositoryInterface from '@modules/compensation/domain/repositories/compensation.repository.interface';
 import { randomUUID } from 'node:crypto';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 @Injectable()
 export class CompensationService
@@ -17,39 +18,49 @@ export class CompensationService
     super(compensationRepository);
   }
 
-  async getBalanceByUserId(userId: string): Promise<CompensationBalance> {
-    const balance =
-      await this.compensationRepository.findBalanceByUserId(userId);
+  async earnHours(
+    userId: string,
+    hours: number,
+    tx?: PrismaTransactionClient,
+  ): Promise<CompensationBalance> {
+    if (hours <= 0) {
+      throw new BadRequestException('Hours must be greater than 0');
+    }
+
+    const balance = await this.getBalanceByUserId(userId, tx);
+    balance.addHours(hours);
+    await this.compensationRepository.update(balance.id, balance, tx);
+    return balance;
+  }
+
+  async getBalanceByUserId(
+    userId: string,
+    tx?: PrismaTransactionClient,
+  ): Promise<CompensationBalance> {
+    const balance = await this.compensationRepository.findBalanceByUserId(
+      userId,
+      tx,
+    );
 
     if (!balance) {
       const newBalance = new CompensationBalance(randomUUID(), userId, 0);
-      await this.compensationRepository.save(newBalance);
+      await this.compensationRepository.save(newBalance, tx);
       return newBalance;
     }
 
     return balance;
   }
 
-  async earnHours(userId: string, hours: number): Promise<CompensationBalance> {
-    if (hours <= 0) {
-      throw new BadRequestException('Hours must be greater than 0');
-    }
-
-    const balance = await this.getBalanceByUserId(userId);
-    balance.addHours(hours);
-    await this.compensationRepository.save(balance);
-    return balance;
-  }
-
   async deductHours(
     userId: string,
     hours: number,
+    tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
     if (hours <= 0) {
       throw new BadRequestException('Hours must be greater than 0');
     }
 
-    const balance = await this.getBalanceByUserId(userId);
+    const balance = await this.getBalanceByUserId(userId, tx);
 
     if (!balance.canDeduct(hours)) {
       throw new BadRequestException(
@@ -58,7 +69,7 @@ export class CompensationService
     }
 
     balance.deductHours(hours);
-    await this.compensationRepository.save(balance);
+    await this.compensationRepository.update(balance.id, balance, tx);
     return balance;
   }
 }

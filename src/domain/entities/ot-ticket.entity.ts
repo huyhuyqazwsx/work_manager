@@ -11,11 +11,10 @@ export class OTTicket {
     public readonly id: string,
     public readonly planId: string,
     public readonly userId: string,
-    public readonly otType: OTType, // COMPENSATION | SALARY
-    public readonly workDate: Date,
-    public readonly endDate: Date, // thường = workDate, trừ overnight
-    public readonly startTime: Date,
-    public readonly endTime: Date,
+    public readonly otType: OTType | null, // COMPENSATION | SALARY
+    public readonly workDate: Date, // ngày làm viec (Date only)
+    public readonly startTime: Date, // datetime đầy đủ
+    public readonly endTime: Date, // datetime đầy đủ (có thể sang ngày hôm sau nếu overnight)
     public readonly totalHours: number,
     public status: OTTicketStatus,
     public plan: string | null, // ghi trước check-in
@@ -91,19 +90,20 @@ export class OTTicket {
     if (!this.checkIn) {
       throw new Error('Cannot auto complete ticket without check-in');
     }
-
     this.checkOut = checkOut;
-
-    const hours =
-      (this.checkOut.getTime() - this.checkIn.getTime()) / (1000 * 60 * 60);
-
-    this.actualHours = Math.max(0, hours);
-
+    this.actualHours = Math.max(
+      0,
+      (this.checkOut.getTime() - this.checkIn.getTime()) / (1000 * 60 * 60),
+    );
     this.status = OTTicketStatus.COMPLETED;
+    this.touch();
   }
 
+  /** true nếu endTime sang ngày hôm sau so với workDate */
   isOvernight(): boolean {
-    return this.endDate > this.workDate;
+    const workDateStr = this.workDate.toDateString();
+    const endDateStr = this.endTime.toDateString();
+    return workDateStr !== endDateStr;
   }
 
   isCompensation(): boolean {
@@ -138,17 +138,13 @@ export class OTTicket {
 
   private calculateActualHours(): number {
     if (!this.checkIn || !this.checkOut) return 0;
-
-    const checkInTimestamp = this.checkIn.getTime();
-    const checkOutTimestamp = this.checkOut.getTime();
-
-    if (checkOutTimestamp <= checkInTimestamp) return 0;
-
-    const diffInMilliseconds = checkOutTimestamp - checkInTimestamp;
-
-    const hours = diffInMilliseconds / (1000 * 60 * 60);
-
-    return Number(hours.toFixed(2));
+    if (this.checkOut.getTime() <= this.checkIn.getTime()) return 0;
+    return Number(
+      (
+        (this.checkOut.getTime() - this.checkIn.getTime()) /
+        (1000 * 60 * 60)
+      ).toFixed(2),
+    );
   }
 
   private touch(): void {

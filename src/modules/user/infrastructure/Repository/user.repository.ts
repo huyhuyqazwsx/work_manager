@@ -10,6 +10,7 @@ import { IUserRepository } from '../../domain/repositories/user.repository.inter
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { UserRole } from '@domain/enum/enum';
 import { AccountStatusBuckets } from '@domain/type/user.types';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 @Injectable()
 export class PrismaUserRepository
@@ -24,7 +25,7 @@ export class PrismaUserRepository
     );
   }
 
-  async findAll(tx?: unknown): Promise<UserAuth[]> {
+  async findAll(tx?: PrismaTransactionClient): Promise<UserAuth[]> {
     const raws = await this.getModel(tx).findMany({
       orderBy: {
         updatedAt: 'desc',

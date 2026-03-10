@@ -16,8 +16,9 @@ export interface IHolidayRepository extends IBaseRepository<Holiday> {
   isHoliday(date: Date): Promise<boolean>;
   findByDate(date: Date): Promise<Holiday | null>;
 
-  findCompensatoryNearDate(
-    originalId: string,
-    targetDate: Date,
-  ): Promise<Holiday | null>;
+  findCompensatoryNearDates(
+    inputs: { id: string; date: Date }[],
+  ): Promise<Holiday[]>;
+
+  findByDates(dates: Date[]): Promise<Holiday[]>;
 }

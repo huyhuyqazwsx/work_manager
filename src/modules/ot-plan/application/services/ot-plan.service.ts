@@ -17,6 +17,11 @@ import { OTPlanStatus, OTTicketStatus } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
 import * as otPlanRepositoryInterface from '@modules/ot-plan/domain/ot-plan.repository.interface';
 import { UpdateOTPlanDto } from '@modules/ot-plan/application/dto/update-ot-plan.dto';
+import {
+  PreviewOTPlanDto,
+  PreviewOTPlanResponseDto,
+} from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 @Injectable()
 export class OTPlanService
@@ -51,61 +56,24 @@ export class OTPlanService
   }
 
   async createPlan(dto: CreateOTPlanDto): Promise<OTPlan> {
-    if (!dto.tickets || dto.tickets.length === 0) {
-      throw new BadRequestException('Plan must have at least one ticket');
-    }
-
-    const otConfig = await this.policyService.getActiveOTConfig();
-    const planId = randomUUID();
-
-    const tickets = dto.tickets.map((t) => {
-      const startTime = new Date(t.startTime);
-      const endTime = new Date(t.endTime);
-      const workDate = new Date(t.workDate);
-
-      const isOvernight = endTime < startTime;
-      const endDate = isOvernight
-        ? new Date(workDate.getTime() + 24 * 60 * 60 * 1000)
-        : workDate;
-
-      const totalHours = isOvernight
-        ? (endTime.getTime() + 24 * 60 * 60 * 1000 - startTime.getTime()) /
-          (1000 * 60 * 60)
-        : (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-      return new OTTicket(
-        randomUUID(),
-        planId,
-        t.userId,
-        t.otType,
-        workDate,
-        endDate,
-        startTime,
-        endTime,
-        Number(totalHours.toFixed(2)),
-        OTTicketStatus.SCHEDULED,
-        null,
-        null,
-        null,
-        null,
-        null,
-      );
-    });
-
-    for (const ticket of tickets) {
-      await this.validateTicketHours(ticket, otConfig);
+    if (!dto.userIds || dto.userIds.length === 0) {
+      throw new BadRequestException('Plan must have at least one user');
     }
 
     const plan = new OTPlan(
-      planId,
+      randomUUID(),
       dto.departmentId,
       dto.managerId,
       dto.reason,
       OTPlanStatus.DRAFT,
+      new Date(dto.startDate),
+      new Date(dto.endDate),
+      dto.startTime,
+      dto.endTime,
+      dto.userIds,
       null,
       null,
       null,
-      tickets,
     );
 
     await this.otPlanRepository.save(plan);
@@ -121,57 +89,14 @@ export class OTPlanService
       );
     }
 
-    if (dto.reason !== undefined) {
-      plan.reason = dto.reason;
-    }
+    if (dto.reason !== undefined) plan.reason = dto.reason;
+    if (dto.startDate !== undefined) plan.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) plan.endDate = new Date(dto.endDate);
+    if (dto.startTime !== undefined) plan.startTime = dto.startTime;
+    if (dto.endTime !== undefined) plan.endTime = dto.endTime;
+    if (dto.userIds !== undefined) plan.userIds = dto.userIds;
 
-    if (dto.tickets !== undefined && dto.tickets.length > 0) {
-      const otConfig = await this.policyService.getActiveOTConfig();
-
-      plan.tickets = dto.tickets.map((t) => {
-        const existing = t.id
-          ? plan.tickets.find((ticket) => ticket.id === t.id)
-          : undefined;
-
-        const startTime = new Date(t.startTime ?? existing?.startTime ?? '');
-        const endTime = new Date(t.endTime ?? existing?.endTime ?? '');
-        const totalHours = Number(
-          (
-            (endTime.getTime() - startTime.getTime()) /
-            (1000 * 60 * 60)
-          ).toFixed(2),
-        );
-
-        const otType = t.otType ?? existing?.otType;
-        if (!otType) throw new BadRequestException('OT type is required');
-
-        return new OTTicket(
-          existing?.id ?? randomUUID(),
-          planId,
-          t.userId ?? existing?.userId ?? '',
-          otType,
-          new Date(t.workDate ?? existing?.workDate ?? ''),
-          new Date(t.endDate ?? existing?.endDate ?? ''),
-          startTime,
-          endTime,
-          totalHours,
-          OTTicketStatus.SCHEDULED,
-          null,
-          null,
-          null,
-          null,
-          null,
-          existing?.checkIn,
-          existing?.checkOut,
-        );
-      });
-
-      for (const ticket of plan.tickets) {
-        await this.validateTicketHours(ticket, otConfig);
-      }
-    }
-
-    await this.otPlanRepository.save(plan);
+    await this.otPlanRepository.update(plan.id, plan);
     return plan;
   }
 
@@ -189,7 +114,7 @@ export class OTPlanService
     }
 
     plan.submit();
-    await this.otPlanRepository.save(plan);
+    await this.otPlanRepository.update(plan.id, plan);
     return plan;
   }
 
@@ -209,8 +134,15 @@ export class OTPlanService
     }
 
     plan.approve(approvedBy);
-    await this.otPlanRepository.save(plan);
-    await this.generateTickets(plan);
+
+    const tickets = this.buildTickets(plan);
+
+    await this.otPlanRepository.runInTransaction(
+      async (tx: PrismaTransactionClient) => {
+        await this.otPlanRepository.update(plan.id, plan, tx);
+        await this.otTicketService.createMany(tickets, tx);
+      },
+    );
 
     return plan;
   }
@@ -235,7 +167,7 @@ export class OTPlanService
     }
 
     plan.reject(rejectedBy, note);
-    await this.otPlanRepository.save(plan);
+    await this.otPlanRepository.update(plan.id, plan);
     return plan;
   }
 
@@ -253,7 +185,7 @@ export class OTPlanService
     }
 
     plan.backToDraft();
-    await this.otPlanRepository.save(plan);
+    await this.otPlanRepository.update(plan.id, plan);
     return plan;
   }
 
@@ -289,30 +221,48 @@ export class OTPlanService
     await this.otPlanRepository.delete(planId);
   }
 
+  async previewPlan(dto: PreviewOTPlanDto): Promise<PreviewOTPlanResponseDto> {
+    const otConfig = await this.policyService.getActiveOTConfig();
+    const warnings: Record<string, string[]> = {};
+
+    const tickets = this.buildTicketsFromDto(dto);
+
+    await Promise.all(
+      tickets.map(async (ticket) => {
+        const ticketWarnings = await this.validateTicketHours(ticket, otConfig);
+        if (ticketWarnings.length > 0) {
+          const key = `${ticket.userId}_${ticket.workDate.toDateString()}`;
+          warnings[key] = ticketWarnings;
+        }
+      }),
+    );
+
+    return {
+      warnings,
+      hasWarnings: Object.keys(warnings).length > 0,
+    };
+  }
+
   // ===== Private =====
 
   private async validateTicketHours(
     ticket: OTTicket,
     otConfig: OTConfig,
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const warnings: string[] = [];
     const totalHours = ticket.totalHours;
 
     if (ticket.isOvernight()) {
       const midnight = new Date(ticket.workDate);
       midnight.setHours(24, 0, 0, 0);
 
+      const endDate = new Date(ticket.endTime);
+      endDate.setHours(0, 0, 0, 0);
+
       const hoursDay1 =
         (midnight.getTime() - ticket.startTime.getTime()) / (1000 * 60 * 60);
       const hoursDay2 =
-        (ticket.endTime.getTime() -
-          new Date(ticket.endDate.toDateString()).getTime()) /
-        (1000 * 60 * 60);
-
-      if (!otConfig.isOvernightValid(hoursDay1, hoursDay2)) {
-        throw new BadRequestException(
-          `User ${ticket.userId}: Overnight OT vượt max ${otConfig.maxHoursPerDay}h/ngày`,
-        );
-      }
+        (ticket.endTime.getTime() - endDate.getTime()) / (1000 * 60 * 60);
 
       const [usedDay1, usedDay2, usedThisMonth, usedThisYear] =
         await Promise.all([
@@ -320,10 +270,7 @@ export class OTPlanService
             ticket.userId,
             ticket.workDate,
           ),
-          this.otTicketService.sumHoursByUserAndDay(
-            ticket.userId,
-            ticket.endDate,
-          ),
+          this.otTicketService.sumHoursByUserAndDay(ticket.userId, endDate),
           this.otTicketService.sumHoursByUserAndMonth(
             ticket.userId,
             ticket.workDate,
@@ -334,15 +281,19 @@ export class OTPlanService
           ),
         ]);
 
+      if (!otConfig.isOvernightValid(hoursDay1, hoursDay2)) {
+        warnings.push(`Overnight OT vượt max ${otConfig.maxHoursPerDay}h/ngày`);
+      }
+
       if (usedDay1 + hoursDay1 > otConfig.maxHoursPerDay) {
-        throw new BadRequestException(
-          `User ${ticket.userId} (${ticket.workDate.toDateString()}): Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
+        warnings.push(
+          `Ngày ${ticket.workDate.toDateString()}: Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
         );
       }
 
       if (usedDay2 + hoursDay2 > otConfig.maxHoursPerDay) {
-        throw new BadRequestException(
-          `User ${ticket.userId} (${ticket.endDate.toDateString()}): Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
+        warnings.push(
+          `Ngày ${endDate.toDateString()}: Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
         );
       }
 
@@ -353,11 +304,7 @@ export class OTPlanService
         usedHoursThisYear: usedThisYear,
       });
 
-      if (!valid) {
-        throw new BadRequestException(
-          `User ${ticket.userId}: ${errors.join(', ')}`,
-        );
-      }
+      if (!valid) warnings.push(...errors);
     } else {
       const [usedToday, usedThisMonth, usedThisYear] = await Promise.all([
         this.otTicketService.sumHoursByUserAndDay(
@@ -381,17 +328,92 @@ export class OTPlanService
         usedHoursThisYear: usedThisYear,
       });
 
-      if (!valid) {
-        throw new BadRequestException(
-          `User ${ticket.userId}: ${errors.join(', ')}`,
-        );
-      }
+      if (!valid) warnings.push(...errors);
     }
+
+    return warnings;
   }
 
-  private async generateTickets(plan: OTPlan): Promise<void> {
-    for (const ticket of plan.tickets) {
-      await this.otTicketService.create(ticket);
+  private buildTickets(plan: OTPlan): OTTicket[] {
+    return this.buildTicketsFromParams(
+      plan.id,
+      plan.startDate,
+      plan.endDate,
+      plan.startTime,
+      plan.endTime,
+      plan.userIds,
+    );
+  }
+
+  private buildTicketsFromDto(dto: PreviewOTPlanDto): OTTicket[] {
+    return this.buildTicketsFromParams(
+      randomUUID(),
+      new Date(dto.startDate),
+      new Date(dto.endDate),
+      dto.startTime,
+      dto.endTime,
+      dto.userIds,
+    );
+  }
+
+  private buildTicketsFromParams(
+    planId: string,
+    startDate: Date,
+    endDate: Date,
+    startTime: string,
+    endTime: string,
+    userIds: string[],
+  ): OTTicket[] {
+    const tickets: OTTicket[] = [];
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+
+    const startTotalMin = startHour * 60 + startMin;
+    const endTotalMin = endHour * 60 + endMin;
+
+    const isOvernight = endTotalMin < startTotalMin;
+
+    const totalHours = isOvernight
+      ? (24 * 60 - startTotalMin + endTotalMin) / 60
+      : (endTotalMin - startTotalMin) / 60;
+
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      for (const userId of userIds) {
+        const workDate = new Date(current);
+
+        const ticketStartTime = new Date(workDate);
+        ticketStartTime.setHours(startHour, startMin, 0, 0);
+
+        const ticketEndDate = isOvernight
+          ? new Date(workDate.getTime() + 24 * 60 * 60 * 1000)
+          : new Date(workDate);
+
+        const ticketEndTime = new Date(ticketEndDate);
+        ticketEndTime.setHours(endHour, endMin, 0, 0);
+
+        tickets.push(
+          new OTTicket(
+            randomUUID(),
+            planId,
+            userId,
+            null,
+            workDate,
+            ticketStartTime,
+            ticketEndTime,
+            Number(totalHours.toFixed(2)),
+            OTTicketStatus.SCHEDULED,
+            null, // plan
+            null, // result
+            null, // actualHours
+            null, // verifiedBy
+            null, // rejectNote
+          ),
+        );
+      }
+      current.setDate(current.getDate() + 1);
     }
+
+    return tickets;
   }
 }

@@ -13,4 +13,6 @@ export interface IOTTicketRepository extends IBaseRepository<OTTicket> {
   sumHoursByUserAndMonth(userId: string, date: Date): Promise<number>;
   sumHoursByUserAndYear(userId: string, date: Date): Promise<number>;
   sumHoursByUserAndDay(userId: string, date: Date): Promise<number>;
+  findPendingLifecycleBatch(limit: number, offset: number): Promise<OTTicket[]>;
+  updateManyTickets(tickets: OTTicket[]): Promise<void>;
 }

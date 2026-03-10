@@ -10,7 +10,6 @@ export class OTTicketMapper {
       raw.userId,
       raw.otType as OTType,
       raw.workDate,
-      raw.endDate,
       raw.startTime,
       raw.endTime,
       raw.totalHours,
@@ -30,7 +29,25 @@ export class OTTicketMapper {
 
   static toPersistence(
     entity: OTTicket | Partial<OTTicket>,
-  ): Record<string, any> {
-    return { ...entity };
+  ): Record<string, unknown> {
+    return {
+      id: entity.id,
+      planId: entity.planId,
+      userId: entity.userId,
+      otType: entity.otType,
+      workDate: entity.workDate,
+      startTime: entity.startTime,
+      endTime: entity.endTime,
+      totalHours: entity.totalHours,
+      status: entity.status,
+      plan: entity.plan ?? null,
+      result: entity.result ?? null,
+      actualHours: entity.actualHours ?? null,
+      verifiedBy: entity.verifiedBy ?? null,
+      rejectNote: entity.rejectNote ?? null,
+      checkIn: entity.checkIn ?? null,
+      checkOut: entity.checkOut ?? null,
+      verifiedAt: entity.verifiedAt ?? null,
+    };
   }
 }

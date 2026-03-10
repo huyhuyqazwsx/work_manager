@@ -7,19 +7,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateOTPlanDto {
-  @ApiProperty()
-  @IsUUID()
-  managerId: string;
-
-  @ApiProperty()
-  @IsUUID()
-  departmentId: string;
-
-  @ApiProperty()
-  @IsString()
-  reason: string;
-
+export class PreviewOTPlanDto {
   @ApiProperty({ example: '2024-01-15' })
   @IsDateString()
   startDate: string;
@@ -44,4 +32,9 @@ export class CreateOTPlanDto {
   @IsArray()
   @IsUUID('4', { each: true })
   userIds: string[];
+}
+
+export class PreviewOTPlanResponseDto {
+  warnings: Record<string, string[]>;
+  hasWarnings: boolean;
 }

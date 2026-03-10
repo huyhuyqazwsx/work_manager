@@ -48,41 +48,47 @@ export class HolidayService
     await this.repository.save(entity);
 
     if (entity.needsCompensation()) {
-      await this.createCompensatoryHoliday(entity);
+      await this.createCompensatoryHolidays([entity]);
     }
   }
 
-  private async createCompensatoryHoliday(
-    originalHoliday: Holiday,
+  private async createCompensatoryHolidays(
+    originalHolidays: Holiday[],
   ): Promise<void> {
-    const compensatoryDate = originalHoliday.getCompensatoryDate();
+    if (!originalHolidays.length) return;
+
+    const compensatoryDates = originalHolidays.map((h) => ({
+      id: h.id,
+      date: h.getCompensatoryDate(),
+    }));
 
     const existingCompensatory =
-      await this.holidayRepository.findCompensatoryNearDate(
-        originalHoliday.id,
-        compensatoryDate,
-      );
-
-    if (existingCompensatory) {
-      return;
-    }
-
-    if (existingCompensatory) return;
-
-    const compensatoryHoliday = new Holiday(
-      randomUUID(),
-      `${originalHoliday.name} (Compensatory)`,
-      compensatoryDate,
-      originalHoliday.type,
-      originalHoliday.session,
-      false,
-      originalHoliday.createdBy,
-      new Date(),
-      true,
-      originalHoliday.id,
+      await this.holidayRepository.findCompensatoryNearDates(compensatoryDates);
+    const existingSet = new Set(
+      existingCompensatory.map((h) => h.originalHolidayId),
     );
 
-    await this.repository.save(compensatoryHoliday);
+    const compensatoryToCreate = originalHolidays
+      .filter((h) => !existingSet.has(h.id))
+      .map(
+        (h) =>
+          new Holiday(
+            randomUUID(),
+            `${h.name} (Compensatory)`,
+            h.getCompensatoryDate(),
+            h.type,
+            h.session,
+            false,
+            h.createdBy,
+            new Date(),
+            true,
+            h.id,
+          ),
+      );
+
+    if (compensatoryToCreate.length) {
+      await this.holidayRepository.createMany(compensatoryToCreate);
+    }
   }
 
   async generateRecurringHolidays(year: number): Promise<{
@@ -90,15 +96,27 @@ export class HolidayService
     compensated: number;
   }> {
     const recurringHolidays = await this.holidayRepository.findRecurring();
-    let generated = 0;
-    let compensated = 0;
+    if (!recurringHolidays.length) return { generated: 0, compensated: 0 };
+
+    const newDates = recurringHolidays.map((holiday) => {
+      const newDate = new Date(holiday.date);
+      newDate.setFullYear(year);
+      return newDate;
+    });
+
+    const existingHolidays = await this.holidayRepository.findByDates(newDates);
+    const existingMap = new Map(
+      existingHolidays.map((h) => [h.date.toDateString(), h]),
+    );
+
+    const holidaysToCreate: Holiday[] = [];
+    const holidaysNeedCompensation: Holiday[] = [];
 
     for (const holiday of recurringHolidays) {
       const newDate = new Date(holiday.date);
       newDate.setFullYear(year);
 
-      // Check existing
-      const existing = await this.holidayRepository.findByDate(newDate);
+      const existing = existingMap.get(newDate.toDateString());
       if (
         existing &&
         existing.name === holiday.name &&
@@ -108,7 +126,6 @@ export class HolidayService
         continue;
       }
 
-      // Create new holiday
       const newHoliday = new Holiday(
         randomUUID(),
         holiday.name,
@@ -122,16 +139,22 @@ export class HolidayService
         undefined,
       );
 
-      await this.repository.save(newHoliday);
-      generated++;
+      holidaysToCreate.push(newHoliday);
 
       if (newHoliday.needsCompensation()) {
-        await this.createCompensatoryHoliday(newHoliday);
-        compensated++;
+        holidaysNeedCompensation.push(newHoliday);
       }
     }
 
-    return { generated, compensated };
+    if (!holidaysToCreate.length) return { generated: 0, compensated: 0 };
+
+    await this.holidayRepository.createMany(holidaysToCreate);
+    await this.createCompensatoryHolidays(holidaysNeedCompensation);
+
+    return {
+      generated: holidaysToCreate.length,
+      compensated: holidaysNeedCompensation.length,
+    };
   }
 
   async getTotalDaysInYear(year: number): Promise<{

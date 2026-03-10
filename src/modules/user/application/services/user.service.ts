@@ -20,6 +20,7 @@ import { EmailQueue } from '@domain/entities/email-queue.entity';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 import * as departmentRepositoryInterface from '@modules/department/domain/repositories/department.repository.interface';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 @Injectable()
 export class UserService
@@ -116,7 +117,7 @@ export class UserService
     users: UserAuth[],
     emails: string[],
   ): Promise<void> {
-    await this.runInTransaction(async (tx) => {
+    await this.runInTransaction(async (tx: PrismaTransactionClient) => {
       if (users.length) {
         await this.createMany(users, tx);
       }

@@ -13,6 +13,7 @@ import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as otPlanServiceInterface from '@modules/ot-plan/application/interfaces/ot-plan.service.interface';
 import { CreateOTPlanDto } from '@modules/ot-plan/application/dto/create-ot-plan.dto';
 import { UpdateOTPlanDto } from '@modules/ot-plan/application/dto/update-ot-plan.dto';
+import { PreviewOTPlanResponseDto } from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
 
 @ApiTags('OT Plan')
 @Controller('ot-plan')
@@ -46,6 +47,13 @@ export class OTPlanController {
   @ApiOperation({ summary: 'Create OT plan' })
   createPlan(@Body() dto: CreateOTPlanDto) {
     return this.otPlanService.createPlan(dto);
+  }
+
+  @Post('preview')
+  async previewPlan(
+    @Body() dto: CreateOTPlanDto,
+  ): Promise<PreviewOTPlanResponseDto> {
+    return this.otPlanService.previewPlan(dto);
   }
 
   @Put(':id')

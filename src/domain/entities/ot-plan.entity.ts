@@ -13,10 +13,19 @@ export class OTPlan {
     public readonly managerId: string,
     public reason: string,
     public status: OTPlanStatus,
+    // Thời gian OT chung cho cả plan
+    public startDate: Date,
+    public endDate: Date,
+    public startTime: string, // HH:mm
+    public endTime: string, // HH:mm
+    // Danh sách userId tham gia
+    public userIds: string[],
+    // Approve / Reject
     public rejectedBy: string | null,
     public rejectionNote: string | null,
     public approvedBy: string | null,
-    public tickets: OTTicket[],
+    // Tickets sinh ra sau khi approve (không lưu vào plan, chỉ dùng in-memory)
+    public tickets: OTTicket[] = [],
     createdAt?: Date,
     updatedAt?: Date,
     rejectedAt?: Date,
@@ -82,7 +91,7 @@ export class OTPlan {
     return this.isDraft();
   }
   canSubmit(): boolean {
-    return this.isDraft() && this.tickets.length > 0;
+    return this.isDraft() && this.userIds.length > 0;
   }
   canApprove(): boolean {
     return this.isPending();

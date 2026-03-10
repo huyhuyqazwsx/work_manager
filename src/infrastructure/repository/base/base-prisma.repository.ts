@@ -1,6 +1,7 @@
 import { IBaseRepository } from '@domain/repositories/base.repository';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 
 export interface IBaseMapper<Domain, Persistence> {
   toDomain(raw: Persistence): Domain;
@@ -98,11 +99,15 @@ export abstract class BasePrismaRepository<
     this.prismaModel = prismaModel;
   }
 
-  async runInTransaction<R>(fn: (tx: unknown) => Promise<R>): Promise<R> {
+  async runInTransaction<R>(
+    fn: (tx: PrismaTransactionClient) => Promise<R>,
+  ): Promise<R> {
     return this.prisma.$transaction((tx) => fn(tx));
   }
 
-  protected getModel(tx?: unknown): PrismaDelegate<Persistence> {
+  protected getModel(
+    tx?: PrismaTransactionClient,
+  ): PrismaDelegate<Persistence> {
     if (!tx) return this.prismaModel;
 
     const modelName = this.getModelName();
@@ -139,18 +144,21 @@ export abstract class BasePrismaRepository<
     throw error;
   }
 
-  async findById(id: string, tx?: unknown): Promise<Domain | null> {
+  async findById(
+    id: string,
+    tx?: PrismaTransactionClient,
+  ): Promise<Domain | null> {
     const raw = await this.getModel(tx).findUnique({ where: { id } });
     if (!raw) return null;
     return this.toDomain(raw);
   }
 
-  async findAll(tx?: unknown): Promise<Domain[]> {
+  async findAll(tx?: PrismaTransactionClient): Promise<Domain[]> {
     const raws = await this.getModel(tx).findMany();
     return raws.map((r) => this.toDomain(r));
   }
 
-  async save(entity: Domain, tx?: unknown): Promise<void> {
+  async save(entity: Domain, tx?: PrismaTransactionClient): Promise<void> {
     try {
       await this.getModel(tx).create({ data: this.toPersistence(entity) });
     } catch (error) {
@@ -161,7 +169,7 @@ export abstract class BasePrismaRepository<
   async update(
     id: string,
     entity: Partial<Domain>,
-    tx?: unknown,
+    tx?: PrismaTransactionClient,
   ): Promise<void> {
     try {
       await this.getModel(tx).update({
@@ -173,7 +181,7 @@ export abstract class BasePrismaRepository<
     }
   }
 
-  async delete(id: string, tx?: unknown): Promise<void> {
+  async delete(id: string, tx?: PrismaTransactionClient): Promise<void> {
     try {
       await this.getModel(tx).delete({ where: { id } });
     } catch (error) {
@@ -181,7 +189,10 @@ export abstract class BasePrismaRepository<
     }
   }
 
-  async createMany(entities: Domain[], tx?: unknown): Promise<number> {
+  async createMany(
+    entities: Domain[],
+    tx?: PrismaTransactionClient,
+  ): Promise<number> {
     try {
       const result = await this.getModel(tx).createMany({
         data: entities.map((e) => this.toPersistence(e)),
@@ -195,7 +206,7 @@ export abstract class BasePrismaRepository<
   async updateMany(
     where: Partial<Domain>,
     entity: Partial<Domain>,
-    tx?: unknown,
+    tx?: PrismaTransactionClient,
   ): Promise<number> {
     try {
       const result = await this.getModel(tx).updateMany({
@@ -208,7 +219,10 @@ export abstract class BasePrismaRepository<
     }
   }
 
-  async deleteMany(where: Partial<Domain>, tx?: unknown): Promise<number> {
+  async deleteMany(
+    where: Partial<Domain>,
+    tx?: PrismaTransactionClient,
+  ): Promise<number> {
     try {
       const result = await this.getModel(tx).deleteMany({ where });
       return result.count;

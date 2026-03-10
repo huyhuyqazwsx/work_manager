@@ -2,7 +2,18 @@ import { CompensationBalance } from '@domain/entities/compensation_balance.entit
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 
 export interface ICompensationService extends IBaseCrudService<CompensationBalance> {
-  getBalanceByUserId(userId: string): Promise<CompensationBalance>;
-  earnHours(userId: string, hours: number): Promise<CompensationBalance>;
-  deductHours(userId: string, hours: number): Promise<CompensationBalance>;
+  getBalanceByUserId(
+    userId: string,
+    tx?: unknown,
+  ): Promise<CompensationBalance>;
+  earnHours(
+    userId: string,
+    hours: number,
+    tx?: unknown,
+  ): Promise<CompensationBalance>;
+  deductHours(
+    userId: string,
+    hours: number,
+    tx?: unknown,
+  ): Promise<CompensationBalance>;
 }

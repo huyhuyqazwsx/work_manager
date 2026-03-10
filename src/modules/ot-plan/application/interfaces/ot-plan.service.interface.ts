@@ -2,6 +2,7 @@ import { OTPlan } from '@domain/entities/ot-plan.entity';
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 import { CreateOTPlanDto } from '@modules/ot-plan/application/dto/create-ot-plan.dto';
 import { UpdateOTPlanDto } from '@modules/ot-plan/application/dto/update-ot-plan.dto';
+import { PreviewOTPlanResponseDto } from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
 
 export interface IOTPlanService extends IBaseCrudService<OTPlan> {
   getPlanById(planId: string): Promise<OTPlan>;
@@ -15,4 +16,5 @@ export interface IOTPlanService extends IBaseCrudService<OTPlan> {
   revisePlan(planId: string, managerId: string): Promise<OTPlan>;
   cancelPlan(planId: string, managerId: string): Promise<void>;
   deletePlan(planId: string, managerId: string): Promise<void>;
+  previewPlan(dto: CreateOTPlanDto): Promise<PreviewOTPlanResponseDto>;
 }

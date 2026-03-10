@@ -198,6 +198,35 @@ export class PrismaOTTicketRepository
     }, 0);
   }
 
+  async findPendingLifecycleBatch(
+    limit: number,
+    offset: number,
+  ): Promise<OTTicket[]> {
+    const raws = await this.prismaModel.findMany({
+      where: {
+        status: {
+          in: [OTTicketStatus.SCHEDULED, OTTicketStatus.IN_PROGRESS],
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+      skip: offset,
+    });
+
+    return raws.map((r) => OTTicketMapper.toDomain(r));
+  }
+
+  async updateManyTickets(tickets: OTTicket[]): Promise<void> {
+    await this.prisma.$transaction(
+      tickets.map((ticket) =>
+        this.prisma.oTTicket.update({
+          where: { id: ticket.id },
+          data: OTTicketMapper.toPersistence(ticket),
+        }),
+      ),
+    );
+  }
+
   //================PRIVATE==================
 
   private calcHoursInRange(
