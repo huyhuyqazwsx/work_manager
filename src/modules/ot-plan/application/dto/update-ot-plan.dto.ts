@@ -2,9 +2,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsDateString,
+  IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
 } from 'class-validator';
 
@@ -41,6 +41,6 @@ export class UpdateOTPlanDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
-  userIds?: string[];
+  @IsEmail()
+  emails?: string[];
 }

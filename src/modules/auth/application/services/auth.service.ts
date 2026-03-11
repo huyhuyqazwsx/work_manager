@@ -66,8 +66,8 @@ export class AuthService implements IAuthService {
       update.gender = zoho.gender;
     }
 
-    if (zoho.first_name && zoho.first_name !== user.fullName) {
-      update.fullName = zoho.first_name;
+    if (zoho.name && zoho.name !== user.fullName) {
+      update.fullName = zoho.name;
     }
 
     return Object.keys(update).length > 0 ? update : null;

@@ -67,11 +67,14 @@ model LeaveRequest {
   fromSession           String         // FULL | MORNING | AFTERNOON
   toSession             String          // FULL | MORNING | AFTERNOON
   totalDays             Float
+  paidDays              Float @default(0)
+  unpaidDays            Float @default(0)
   createdBy             String          @db.Uuid
   createdAt             DateTime        @default(now())
   approvedBy            String?         @db.Uuid
   approvedAt            DateTime?
   paidPersonalEventCode String?         // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL | null
+  attachmentUrl String?
 
   @@index([createdBy, leaveTypeId])
   @@index([status])

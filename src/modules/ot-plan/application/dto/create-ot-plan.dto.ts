@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsDateString,
+  IsEmail,
   IsString,
   IsUUID,
   Matches,
@@ -42,6 +43,6 @@ export class CreateOTPlanDto {
 
   @ApiProperty({ type: [String] })
   @IsArray()
-  @IsUUID('4', { each: true })
-  userIds: string[];
+  @IsEmail()
+  emails: string[];
 }

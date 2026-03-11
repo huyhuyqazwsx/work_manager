@@ -22,6 +22,7 @@ import {
   PreviewOTPlanResponseDto,
 } from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import * as userRepositoryInterface from '@modules/user/domain/repositories/user.repository.interface';
 
 @Injectable()
 export class OTPlanService
@@ -37,6 +38,8 @@ export class OTPlanService
     private readonly policyService: policyServiceInterface.IPolicyService,
     @Inject('IUserService')
     private readonly userService: userServiceInterface.IUserService,
+    @Inject('IUserRepository')
+    private readonly userRepository: userRepositoryInterface.IUserRepository,
   ) {
     super(otPlanRepository);
   }
@@ -56,8 +59,15 @@ export class OTPlanService
   }
 
   async createPlan(dto: CreateOTPlanDto): Promise<OTPlan> {
-    if (!dto.userIds || dto.userIds.length === 0) {
+    if (!dto.emails || dto.emails.length === 0) {
       throw new BadRequestException('Plan must have at least one user');
+    }
+
+    const userIds = await this.userRepository.getIdsByEmails(dto.emails);
+    if (userIds.notFound.length > 0) {
+      throw new BadRequestException(
+        `User not found. : ${userIds.notFound.join(', ')}`,
+      );
     }
 
     const plan = new OTPlan(
@@ -70,7 +80,7 @@ export class OTPlanService
       new Date(dto.endDate),
       dto.startTime,
       dto.endTime,
-      dto.userIds,
+      userIds.inSystem,
       null,
       null,
       null,
@@ -94,7 +104,16 @@ export class OTPlanService
     if (dto.endDate !== undefined) plan.endDate = new Date(dto.endDate);
     if (dto.startTime !== undefined) plan.startTime = dto.startTime;
     if (dto.endTime !== undefined) plan.endTime = dto.endTime;
-    if (dto.userIds !== undefined) plan.userIds = dto.userIds;
+    if (dto.emails !== undefined) {
+      const userIds = await this.userRepository.getIdsByEmails(dto.emails);
+      if (userIds.notFound.length > 0) {
+        throw new BadRequestException(
+          `User not found. : ${userIds.notFound.join(', ')}`,
+        );
+      }
+
+      plan.userIds = userIds.inSystem;
+    }
 
     await this.otPlanRepository.update(plan.id, plan);
     return plan;
@@ -225,7 +244,7 @@ export class OTPlanService
     const otConfig = await this.policyService.getActiveOTConfig();
     const warnings: Record<string, string[]> = {};
 
-    const tickets = this.buildTicketsFromDto(dto);
+    const tickets = await this.buildTicketsFromDto(dto);
 
     await Promise.all(
       tickets.map(async (ticket) => {
@@ -345,14 +364,23 @@ export class OTPlanService
     );
   }
 
-  private buildTicketsFromDto(dto: PreviewOTPlanDto): OTTicket[] {
+  private async buildTicketsFromDto(
+    dto: PreviewOTPlanDto,
+  ): Promise<OTTicket[]> {
+    const userIds = await this.userRepository.getIdsByEmails(dto.emails);
+    if (userIds.notFound.length > 0) {
+      throw new BadRequestException(
+        `User not found. : ${userIds.notFound.join(', ')}`,
+      );
+    }
+
     return this.buildTicketsFromParams(
       randomUUID(),
       new Date(dto.startDate),
       new Date(dto.endDate),
       dto.startTime,
       dto.endTime,
-      dto.userIds,
+      userIds.inSystem,
     );
   }
 

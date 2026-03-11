@@ -13,9 +13,13 @@ export class LeaveRequestMapper {
       raw.fromSession as HolidaySession,
       raw.toSession as HolidaySession,
       raw.totalDays,
+      raw.paidDays,
+      raw.unpaidDays,
       raw.reason,
       raw.createdBy,
       raw.approvedBy,
+      raw.paidPersonalEventCode,
+      raw.attachmentUrl,
       raw.createdAt,
       raw.approvedAt,
     );

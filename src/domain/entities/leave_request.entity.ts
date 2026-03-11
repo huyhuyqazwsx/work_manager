@@ -13,9 +13,13 @@ export class LeaveRequest {
     public fromSession: HolidaySession,
     public toSession: HolidaySession,
     public totalDays: number,
+    public paidDays: number,
+    public unpaidDays: number,
     public reason: string | null,
     public readonly createdBy: string,
     public approvedBy: string | null,
+    public paidPersonalEventCode: string | null,
+    public attachmentUrl: string | null,
     createdAt?: Date,
     approvedAt?: Date | null,
   ) {

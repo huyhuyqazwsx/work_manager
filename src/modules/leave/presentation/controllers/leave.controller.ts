@@ -10,16 +10,29 @@ import {
   ParseIntPipe,
   Query,
   DefaultValuePipe,
+  UploadedFile,
+  FileTypeValidator,
+  UseInterceptors,
+  ParseFilePipe,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import * as leaveServiceInterface from '../../application/interfaces/leave.service.interface';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { LeaveEligibilityResponseDto } from '../../application/dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../../application/dto/create-leave-request.dto';
 import { RejectLeaveRequestDto } from '../../application/dto/reject-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
 import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
+import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Leave')
 @Controller('leave')
@@ -61,15 +74,63 @@ export class LeaveController {
     return this.leaveService.getLeaveRequestByManagerId(managerId, page, limit);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Submit leave request' })
+  @Get('notify/:userId')
+  @ApiOperation({ summary: 'Get notify email receivers for leave workflow' })
   @ApiResponse({
-    status: 201,
-    description: 'Leave request submitted successfully',
-    type: LeaveRequest,
+    status: 200,
+    description: 'List of email receivers',
+    type: NotifyEmailResponse,
   })
-  async create(@Body() dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
-    return this.leaveService.createLeaveRequest(dto);
+  async getNotifyInfo(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+  ): Promise<NotifyEmailResponse> {
+    return this.leaveService.getNotifyInfo(userId);
+  }
+
+  @Get(':userId')
+  async getById(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+  ): Promise<LeaveRequest | null> {
+    return this.leaveService.findById(userId);
+  }
+
+  @Post()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Attachment (jpg, jpeg, png, webp - max 5MB)',
+        },
+        userId: { type: 'string', example: 'uuid-user-id' },
+        leaveTypeCode: { type: 'string', example: 'ANNUAL_LEAVE' },
+        fromDate: { type: 'string', example: '2026-03-10' },
+        toDate: { type: 'string', example: '2026-03-12' },
+        fromSession: { type: 'string', example: 'MORNING' },
+        toSession: { type: 'string', example: 'AFTERNOON' },
+        reason: { type: 'string', example: 'Personal work' },
+        paidPersonalEventCode: { type: 'string', example: 'CHILD_MARRIAGE' },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async create(
+    @Body() dto: CreateLeaveRequestDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(pdf|jpg|png|svg)$/ }),
+        ],
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    return this.leaveService.createLeaveRequest(dto, file);
   }
 
   @Post('preview')

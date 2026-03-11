@@ -9,8 +9,9 @@ import {
 import { IUserRepository } from '../../domain/repositories/user.repository.interface';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { UserRole } from '@domain/enum/enum';
-import { AccountStatusBuckets } from '@domain/type/user.types';
+import { AccountIdsInfo, AccountStatusBuckets } from '@domain/type/user.types';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
 
 @Injectable()
 export class PrismaUserRepository
@@ -116,5 +117,65 @@ export class PrismaUserRepository
     }
 
     return result;
+  }
+
+  async getIdsByEmails(mails: string[]): Promise<AccountIdsInfo> {
+    const result: AccountIdsInfo = {
+      inSystem: [],
+      notFound: [],
+    };
+    const users = await this.prisma.user.findMany({
+      where: {
+        email: { in: mails },
+      },
+      select: {
+        email: true,
+        id: true,
+      },
+    });
+
+    const userMap = new Map(users.map((u) => [u.email, u.id]));
+
+    for (const mail of mails) {
+      const id = userMap.get(mail);
+      if (!id) result.notFound.push(mail);
+      else result.inSystem.push(id);
+    }
+
+    return result;
+  }
+
+  async getInfoNotifyEmail(
+    byRoles: UserRole[],
+    includeManager: boolean,
+    departmentId: string,
+  ): Promise<NotifyEmailResponse> {
+    const managerId = includeManager
+      ? ((
+          await this.prisma.department.findUnique({
+            where: { id: departmentId },
+            select: { managerId: true },
+          })
+        )?.managerId ?? null)
+      : null;
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          ...(byRoles.length > 0 ? [{ role: { in: byRoles } }] : []),
+          ...(managerId ? [{ id: managerId }] : []),
+        ],
+      },
+      select: { email: true, fullName: true, role: true },
+    });
+
+    return {
+      info: users.map((u) => ({
+        email: u.email,
+        name: u.fullName,
+        role: u.role,
+      })),
+    };
   }
 }

@@ -10,4 +10,5 @@ export interface ILeaveRequestRepository extends IBaseRepository<LeaveRequest> {
     page: number,
     limit: number,
   ): Promise<PaginatedLeaveRequests>;
+  calculatorUsedDay(targetYear: number, leaveTypeId: string): Promise<number>;
 }

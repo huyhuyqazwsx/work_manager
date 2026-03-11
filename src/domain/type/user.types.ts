@@ -4,3 +4,8 @@ export type AccountStatusBuckets = {
   active: string[];
   inactive: string[];
 };
+
+export type AccountIdsInfo = {
+  inSystem: string[];
+  notFound: string[];
+};

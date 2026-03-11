@@ -1,12 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { HolidaySession, LeaveTypeCode } from '@domain/enum/enum';
+import {
+  HolidaySession,
+  LeaveTypeCode,
+  PaidPersonalEventCode,
+} from '@domain/enum/enum';
 
 export class CreateLeaveRequestDto {
   @ApiProperty({ example: 'uuid-user-id' })
@@ -37,4 +42,16 @@ export class CreateLeaveRequestDto {
   @IsString()
   @IsOptional()
   reason?: string;
+
+  @ApiPropertyOptional({ example: PaidPersonalEventCode.CHILD_MARRIAGE })
+  @IsString()
+  @IsOptional()
+  @IsEnum(PaidPersonalEventCode)
+  paidPersonalEventCode?: string;
+
+  @ApiPropertyOptional({ example: 'user@example.com' })
+  @IsString()
+  @IsEmail()
+  @IsOptional()
+  emailLeader?: string;
 }

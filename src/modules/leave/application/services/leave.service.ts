@@ -14,6 +14,8 @@ import * as holidayServiceInterface from '../../../holiday/application/interface
 import {
   HolidaySession,
   LeaveRequestStatus,
+  LeaveTypeCode,
+  PaidPersonalEventCode,
   UserRole,
 } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
@@ -28,6 +30,10 @@ import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
 import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
+import { StorageService } from '@infra/storage/storage.service';
+import * as compensationServiceInterface from '@modules/compensation/application/interfaces/compensation.service.interface';
+import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
+import * as userRepositoryInterface from '@modules/user/domain/repositories/user.repository.interface';
 
 @Injectable()
 export class LeaveService
@@ -45,10 +51,15 @@ export class LeaveService
     private readonly leaveTypeService: leaveTypeServiceInterface.ILeaveTypeService,
     @Inject('IUserService')
     private readonly userService: userServiceInterface.IUserService,
+    @Inject('IUserRepository')
+    private readonly userRepository: userRepositoryInterface.IUserRepository,
     @Inject('IPolicyService')
     private readonly policyService: policyServiceInterface.IPolicyService,
     @Inject('IDepartmentService')
     private readonly departmentService: departmentServiceInterface.IDepartmentService,
+    private readonly storageService: StorageService,
+    @Inject('ICompensationService')
+    private readonly compensationService: compensationServiceInterface.ICompensationService,
   ) {
     super(leaveRepository);
   }
@@ -58,39 +69,15 @@ export class LeaveService
   ): Promise<LeaveEligibilityResponseDto[]> {
     const targetYear = new Date().getFullYear();
 
-    const [user, leaveTypes] = await Promise.all([
+    const [user, annualLeaveType] = await Promise.all([
       this.userService.findUserById(userId),
-      this.leaveTypeService.findAll(),
+      this.leaveTypeService.findByCode(LeaveTypeCode.ANNUAL),
     ]);
 
     if (!user) throw new NotFoundException('User not found');
+    if (!annualLeaveType) return [];
 
-    return Promise.all(
-      leaveTypes.map((leaveType) => {
-        if (leaveType.isAnnualLeave()) {
-          return this.handleAnnualLeave(leaveType, user, targetYear);
-        }
-        if (leaveType.isCompensatoryLeave()) {
-          return this.handleCompensatoryLeave(leaveType, user);
-        }
-        if (leaveType.isPaidPersonalLeave()) {
-          return this.handlePaidPersonalLeave(leaveType, user);
-        }
-        if (leaveType.isSocialInsuranceLeave()) {
-          return this.handleSocialInsuranceLeave(leaveType, user);
-        }
-
-        return Promise.resolve({
-          leaveTypeCode: leaveType.code,
-          leaveTypeName: leaveType.name,
-          totalAllowedDays: 0,
-          usedDays: 0,
-          remainingDays: 0,
-          isEligible: false,
-          reason: 'Not support',
-        });
-      }),
-    );
+    return [await this.handleAnnualLeave(annualLeaveType, user, targetYear)];
   }
 
   async getLeaveRequestByManagerId(
@@ -115,7 +102,10 @@ export class LeaveService
     return this.leaveRepository.getByUserId(userId);
   }
 
-  async createLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
+  async createLeaveRequest(
+    dto: CreateLeaveRequestDto,
+    file?: Express.Multer.File,
+  ): Promise<LeaveRequest> {
     const startDate = new Date(dto.fromDate);
     const endDate = new Date(dto.toDate);
 
@@ -134,6 +124,16 @@ export class LeaveService
       dto.toSession,
     );
 
+    const currentBalance = await this.resolveBalance(
+      leaveType,
+      user,
+      dto.paidPersonalEventCode,
+    );
+
+    const paidDays = Math.min(actualLeaveDays, currentBalance);
+
+    const unpaidDays = Math.max(0, actualLeaveDays - paidDays);
+
     const leaveRequest = new LeaveRequest(
       randomUUID(),
       leaveType.id,
@@ -143,13 +143,21 @@ export class LeaveService
       dto.fromSession,
       dto.toSession,
       actualLeaveDays,
+      paidDays,
+      unpaidDays,
       dto.reason ?? null,
       dto.userId,
+      null,
+      null,
       null,
     );
 
     await this.leaveRepository.save(leaveRequest);
-    await this.notifyApprover(leaveRequest, user);
+    void this.notifyApprover(leaveRequest, user, dto.emailLeader);
+
+    if (file) {
+      void this.uploadAttachmentAsync(leaveRequest.id, dto.userId, file);
+    }
 
     return leaveRequest;
   }
@@ -235,8 +243,13 @@ export class LeaveService
     const endDate = new Date(dto.toDate);
     endDate.setHours(23, 59, 59, 999);
 
-    const leaveType = await this.leaveTypeService.findById(dto.leaveTypeId);
+    const [user, leaveType] = await Promise.all([
+      this.userService.findUserById(dto.userId),
+      this.leaveTypeService.findById(dto.leaveTypeId),
+    ]);
+
     if (!leaveType) throw new NotFoundException('Leave type not found');
+    if (!user) throw new NotFoundException('User not found');
 
     // Tính số ngày thực tế, nếu range không hợp lệ thì actualLeaveDays = 0
     type LeaveCalculationResult = {
@@ -272,14 +285,14 @@ export class LeaveService
     const { actualLeaveDays } = result;
 
     // Lấy balance hiện tại theo leaveType
-    const eligibility = await this.getLeaveEligibility(dto.userId);
-    const currentLeave = eligibility.find(
-      (e) => e.leaveTypeCode === leaveType.code,
+    const currentBalance = await this.resolveBalance(
+      leaveType,
+      user,
+      dto.paidPersonalEventCode,
     );
 
-    const currentBalance = currentLeave?.remainingDays ?? 0;
     const remainingAfterRequest =
-      currentBalance === -1 ? -1 : currentBalance - actualLeaveDays; // -1 = unlimited
+      currentBalance === -1 ? -1 : currentBalance - actualLeaveDays;
 
     const warnings: string[] = [];
 
@@ -299,13 +312,39 @@ export class LeaveService
       );
     }
 
-    return {
-      actualLeaveDays,
-      remainingAfterRequest,
-      warnings,
-    };
+    return { actualLeaveDays, remainingAfterRequest, warnings };
   }
 
+  async getNotifyInfo(userId: string): Promise<NotifyEmailResponse> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User does not exist');
+
+    switch (user.role) {
+      case UserRole.EMPLOYEE:
+        return this.userRepository.getInfoNotifyEmail(
+          [UserRole.HR],
+          true,
+          user.departmentId,
+        );
+
+      case UserRole.DEPARTMENT_HEAD:
+        return this.userRepository.getInfoNotifyEmail(
+          [UserRole.BOD, UserRole.HR],
+          false,
+          user.departmentId,
+        );
+
+      case UserRole.HR:
+        return this.userRepository.getInfoNotifyEmail(
+          [UserRole.BOD],
+          false,
+          user.departmentId,
+        );
+
+      default:
+        return { info: [] };
+    }
+  }
   // ================ Private =========================
 
   private async handleAnnualLeave(
@@ -342,12 +381,14 @@ export class LeaveService
     }
 
     const totalAllowedDays = leaveConfig.calculateAllowedDays({
-      signDate: user.contractSignedDate,
+      signDate: user.joinDate,
       targetYear,
     });
 
-    // TODO: handle used days
-    const usedDays = 0;
+    const usedDays = await this.leaveRepository.calculatorUsedDay(
+      targetYear,
+      leaveType.id,
+    );
     const remainingDays = Math.max(0, totalAllowedDays - usedDays);
 
     return {
@@ -364,92 +405,83 @@ export class LeaveService
     };
   }
 
-  private handleCompensatoryLeave(
+  private async resolveBalance(
     leaveType: LeaveType,
     user: UserAuth,
-  ): Promise<LeaveEligibilityResponseDto> {
-    if (!user.isOfficialEmployee()) {
-      return Promise.resolve({
-        leaveTypeCode: leaveType.code,
-        leaveTypeName: leaveType.name,
-        totalAllowedDays: 0,
-        usedDays: 0,
-        remainingDays: 0,
-        isEligible: false,
-        reason: `Contract type "${user.contractType}" is not eligible for compensatory leave`,
+    paidPersonalEventCode?: string,
+  ): Promise<number> {
+    const targetYear = new Date().getFullYear();
+
+    if (leaveType.isAnnualLeave()) {
+      const leaveConfig = await this.policyService
+        .getLeaveConfig(user.contractType)
+        .catch(() => null);
+
+      if (!leaveConfig?.isActive) return 0;
+
+      const totalAllowedDays = leaveConfig.calculateAllowedDays({
+        signDate: user.joinDate,
+        targetYear,
       });
+
+      const usedDays = await this.leaveRepository.calculatorUsedDay(
+        targetYear,
+        leaveType.id,
+      );
+
+      return Math.max(0, totalAllowedDays - usedDays);
     }
 
-    // TODO: implement later
-    return Promise.resolve({
-      leaveTypeCode: leaveType.code,
-      leaveTypeName: leaveType.name,
-      totalAllowedDays: 0,
-      usedDays: 0,
-      remainingDays: 0,
-      isEligible: false,
-      reason: 'Not implemented yet',
-    });
+    if (leaveType.isPaidPersonalLeave()) {
+      if (!paidPersonalEventCode) {
+        throw new BadRequestException(
+          'paidPersonalEventCode is required for paid personal leave',
+        );
+      }
+
+      const event = await this.policyService
+        .getPaidPersonalEvent(paidPersonalEventCode as PaidPersonalEventCode)
+        .catch(() => null);
+
+      return event?.allowedDays ?? 0;
+    }
+
+    if (leaveType.isSocialInsuranceLeave()) {
+      // TODO: implement later (Social fund)
+    }
+
+    if (leaveType.isCompensatoryLeave()) {
+      const balance = await this.compensationService.getBalanceByUserId(
+        user.id,
+      );
+
+      return balance.getBalanceInDays();
+    }
+
+    return 0;
   }
 
-  private handlePaidPersonalLeave(
-    leaveType: LeaveType,
-    user: UserAuth,
-  ): Promise<LeaveEligibilityResponseDto> {
-    if (!user.isOfficialEmployee()) {
-      return Promise.resolve({
-        leaveTypeCode: leaveType.code,
-        leaveTypeName: leaveType.name,
-        totalAllowedDays: 0,
-        usedDays: 0,
-        remainingDays: 0,
-        isEligible: false,
-        reason: `Contract type "${user.contractType}" is not eligible for paid personal leave`,
-      });
+  private async uploadAttachmentAsync(
+    leaveRequestId: string,
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<void> {
+    try {
+      const attachmentUrl = await this.storageService.uploadImage(userId, file);
+      await this.leaveRepository.update(leaveRequestId, { attachmentUrl });
+      this.logger.log('update attachment', attachmentUrl);
+    } catch (err) {
+      this.logger.error(
+        `Failed to upload attachment for leave request ${leaveRequestId}`,
+        err as Error,
+      );
     }
-
-    // TODO: implement later
-    return Promise.resolve({
-      leaveTypeCode: leaveType.code,
-      leaveTypeName: leaveType.name,
-      totalAllowedDays: 0,
-      usedDays: 0,
-      remainingDays: 0,
-      isEligible: false,
-      reason: 'Not implemented yet',
-    });
-  }
-
-  private handleSocialInsuranceLeave(
-    leaveType: LeaveType,
-    user: UserAuth,
-  ): Promise<LeaveEligibilityResponseDto> {
-    if (!user.isOfficialEmployee()) {
-      return Promise.resolve({
-        leaveTypeCode: leaveType.code,
-        leaveTypeName: leaveType.name,
-        totalAllowedDays: 0,
-        usedDays: 0,
-        remainingDays: 0,
-        isEligible: false,
-        reason: `Contract type "${user.contractType}" is not eligible for social insurance leave`,
-      });
-    }
-
-    return Promise.resolve({
-      leaveTypeCode: leaveType.code,
-      leaveTypeName: leaveType.name,
-      totalAllowedDays: -1,
-      usedDays: 0,
-      remainingDays: -1,
-      isEligible: true,
-      reason: null,
-    });
   }
 
   private async notifyApprover(
     leaveRequest: LeaveRequest,
     user: UserAuth,
+    emailLeader?: string,
   ): Promise<void> {
     const department = await this.departmentService.findById(user.departmentId);
 
@@ -467,6 +499,7 @@ export class LeaveService
     this.logger.debug(manager);
     this.logger.debug(hr);
     this.logger.debug(leaveRequest);
+    this.logger.debug(emailLeader);
   }
 
   private async validateLeaveRequest(

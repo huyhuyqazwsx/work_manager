@@ -1,8 +1,8 @@
 import {
   IsArray,
   IsDateString,
+  IsEmail,
   IsString,
-  IsUUID,
   Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -30,8 +30,8 @@ export class PreviewOTPlanDto {
 
   @ApiProperty({ type: [String] })
   @IsArray()
-  @IsUUID('4', { each: true })
-  userIds: string[];
+  @IsEmail()
+  emails: string[];
 }
 
 export class PreviewOTPlanResponseDto {

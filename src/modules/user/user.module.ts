@@ -17,6 +17,6 @@ import { DepartmentModule } from '../department/department.module';
       useClass: PrismaUserRepository,
     },
   ],
-  exports: ['IUserService'],
+  exports: ['IUserService', 'IUserRepository'],
 })
 export class UserModule {}

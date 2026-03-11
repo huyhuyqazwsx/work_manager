@@ -23,6 +23,7 @@ export class StorageService implements OnModuleInit {
     }
 
     this.supabase = createClient(url, key) as SupabaseClient;
+    void this.ensureBucketExists();
   }
 
   async uploadImage(
@@ -76,6 +77,40 @@ export class StorageService implements OnModuleInit {
           ? String((error as { message: unknown }).message)
           : 'Delete failed';
       throw new InternalServerErrorException(message);
+    }
+  }
+
+  //==========Private===========
+  private async ensureBucketExists(): Promise<void> {
+    const { data: buckets, error } = await this.supabase.storage.listBuckets();
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Failed to list buckets: ${String(error.message)}`,
+      );
+    }
+
+    const exists = buckets?.some((b) => b.name === this.BUCKET);
+    if (exists) return;
+
+    const { error: createError } = await this.supabase.storage.createBucket(
+      this.BUCKET,
+      {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB
+        allowedMimeTypes: [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+        ],
+      },
+    );
+
+    if (createError) {
+      throw new InternalServerErrorException(
+        `Failed to create bucket: ${String(createError.message)}`,
+      );
     }
   }
 }

@@ -7,6 +7,8 @@ import { LeaveTypeModule } from '../leave-type/leave-type.module';
 import { UserModule } from '../user/user.module';
 import { PolicyModule } from '../policy/policy.module';
 import { DepartmentModule } from '../department/department.module';
+import { StorageModule } from '@infra/storage/storage.module';
+import { CompensationModule } from '@modules/compensation/compensation.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { DepartmentModule } from '../department/department.module';
     UserModule,
     PolicyModule,
     DepartmentModule,
+    StorageModule,
+    CompensationModule,
   ],
   providers: [
     {

@@ -33,8 +33,9 @@ export class CompensationBalance {
     return this.hours;
   }
 
-  getBalanceInDays(hoursPerDay: number = 8): number {
-    return this.hours / hoursPerDay;
+  getBalanceInDays(): number {
+    const days = this.hours / 8;
+    return Math.floor(days * 2) / 2;
   }
 
   private touch(): void {

@@ -5,11 +5,15 @@ import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
 import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
+import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
 
 export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
   findByUserId(userId: string): Promise<LeaveRequest[]>;
 
-  createLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest>;
+  createLeaveRequest(
+    dto: CreateLeaveRequestDto,
+    file?: Express.Multer.File,
+  ): Promise<LeaveRequest>;
 
   getLeaveEligibility(userId: string): Promise<LeaveEligibilityResponseDto[]>;
 
@@ -39,4 +43,7 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
   previewLeaveRequest(
     dto: PreviewLeaveRequestDto,
   ): Promise<PreviewLeaveResponseDto>;
+
+  //Lấy thông tin email hr + trưởng phòng khi tạo form
+  getNotifyInfo(userId: string): Promise<NotifyEmailResponse>;
 }

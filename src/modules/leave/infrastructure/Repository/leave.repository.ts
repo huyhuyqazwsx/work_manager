@@ -9,6 +9,7 @@ import { ILeaveRequestRepository } from '../../domain/repositories/leave.reposit
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { LeaveRequestMapper } from './leave.mapper';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { LeaveRequestStatus } from '@domain/enum/enum';
 
 @Injectable()
 export class PrismaLeaveRequestRepository
@@ -81,5 +82,27 @@ export class PrismaLeaveRequestRepository
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async calculatorUsedDay(
+    targetYear: number,
+    leaveTypeId: string,
+  ): Promise<number> {
+    const startOfYear = new Date(targetYear, 0, 1); // 1/1/targetYear
+    const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59, 999); // 31/12/targetYear
+
+    const result = await this.prisma.leaveRequest.aggregate({
+      _sum: { paidDays: true },
+      where: {
+        leaveTypeId,
+        status: {
+          in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED],
+        },
+        fromDate: { gte: startOfYear },
+        toDate: { lte: endOfYear },
+      },
+    });
+
+    return result._sum.paidDays ?? 0;
   }
 }
