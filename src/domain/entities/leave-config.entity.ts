@@ -14,7 +14,16 @@ export class LeaveConfig {
     public allowNegativeBalance: boolean,
     public isActive: boolean,
   ) {}
-
+  getTotalBase(signDate: Date, targetYear: number) {
+    const now = new Date();
+    const yearsOfService = this.calculateYearsOfServiceAtYear(
+      signDate,
+      targetYear,
+      now,
+    );
+    const bonus = this.calculateBonusDays(yearsOfService);
+    return this.baseDaysPerYear + bonus;
+  }
   calculateAllowedDays(params: {
     signDate: Date | null;
     targetYear: number;

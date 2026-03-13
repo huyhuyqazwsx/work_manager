@@ -16,6 +16,9 @@ export class CompensationController {
   async getBalance(
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ): Promise<CompensationBalance> {
-    return this.compensationService.getBalanceByUserId(userId);
+    return this.compensationService.getBalanceByUserId(
+      userId,
+      new Date().getFullYear(),
+    );
   }
 }

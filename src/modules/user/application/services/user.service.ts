@@ -126,7 +126,7 @@ export class UserService
         emails.map((email) => {
           const verificationToken = randomBytes(32).toString('hex');
 
-          return new EmailQueue(randomUUID(), email, EmailType.INVITE, {
+          return new EmailQueue(randomUUID(), email, [], EmailType.INVITE, {
             verificationToken,
           });
         }),
@@ -139,9 +139,15 @@ export class UserService
     const verificationToken = randomBytes(32).toString('hex');
     this.logger.log(`Verification token: ${verificationToken}`);
 
-    const emailQueue = new EmailQueue(randomUUID(), email, EmailType.INVITE, {
-      verificationToken,
-    });
+    const emailQueue = new EmailQueue(
+      randomUUID(),
+      email,
+      [],
+      EmailType.INVITE,
+      {
+        verificationToken,
+      },
+    );
     await this.mailService.create(emailQueue);
   }
 
@@ -198,6 +204,7 @@ export class UserService
             UserStatus.PENDING,
             invite.role,
             deptId,
+            invite.department,
             invite.position ?? '',
             invite.contractType,
             invite.joinDate,

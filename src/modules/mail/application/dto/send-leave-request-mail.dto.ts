@@ -1,13 +1,28 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+export enum LeaveSession {
+  FULL = 'FULL',
+  MORNING = 'MORNING',
+  AFTERNOON = 'AFTERNOON',
+}
 
 export class SendLeaveRequestMailDto {
   @ApiProperty({
     example: ['manager@company.com'],
     description: 'Recipient email(s)',
   })
-  @IsNotEmpty()
-  to: string | string[];
+  @IsArray()
+  @IsEmail({}, { each: true })
+  to: string[];
 
   @ApiProperty({ example: 'Nguyễn Văn A' })
   @IsString()
@@ -17,32 +32,35 @@ export class SendLeaveRequestMailDto {
   @ApiProperty({ example: 'NV001' })
   @IsString()
   @IsNotEmpty()
-  employeeId: string;
+  employeeCode: string;
 
-  @ApiProperty({ example: 'Nghỉ phép năm' })
+  @ApiProperty({ example: 'Engineering' })
   @IsString()
   @IsNotEmpty()
-  leaveTypeName: string;
+  departmentName: string;
 
-  @ApiProperty({ example: '05/03/2026' })
+  @ApiProperty({ example: 'ANNUAL_LEAVE', required: false })
+  @IsOptional()
+  @IsString()
+  leaveTypeCode?: string;
+
+  @ApiProperty({ example: '2026-03-05' })
   @IsString()
   @IsNotEmpty()
   fromDate: string;
 
-  @ApiProperty({ example: '08:00', required: false })
-  @IsOptional()
-  @IsString()
-  fromTime?: string;
-
-  @ApiProperty({ example: '06/03/2026' })
+  @ApiProperty({ example: '2026-03-06' })
   @IsString()
   @IsNotEmpty()
   toDate: string;
 
-  @ApiProperty({ example: '17:00', required: false })
-  @IsOptional()
-  @IsString()
-  toTime?: string;
+  @ApiProperty({ example: 'MORNING', enum: LeaveSession })
+  @IsEnum(LeaveSession)
+  fromSession: LeaveSession;
+
+  @ApiProperty({ example: 'AFTERNOON', enum: LeaveSession })
+  @IsEnum(LeaveSession)
+  toSession: LeaveSession;
 
   @ApiProperty({ example: 2 })
   @IsNumber()
@@ -52,11 +70,6 @@ export class SendLeaveRequestMailDto {
   @IsOptional()
   @IsString()
   reason?: string | null;
-
-  @ApiProperty({ example: 'Đã báo cáo trưởng nhóm', required: false })
-  @IsOptional()
-  @IsString()
-  note?: string | null;
 
   @ApiProperty({ example: 'Anh Minh' })
   @IsString()
@@ -68,7 +81,12 @@ export class SendLeaveRequestMailDto {
   @IsNotEmpty()
   actionLink: string;
 
-  @ApiProperty({ example: ['hr@company.com'], required: false })
+  @ApiProperty({
+    example: ['hr@company.com'],
+    required: false,
+  })
   @IsOptional()
-  cc?: string | string[];
+  @IsArray()
+  @IsEmail({}, { each: true })
+  cc?: string[];
 }

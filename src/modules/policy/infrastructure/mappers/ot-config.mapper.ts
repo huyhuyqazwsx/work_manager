@@ -9,6 +9,8 @@ export class OTConfigMapper {
       raw.maxHoursPerMonth,
       raw.maxHoursPerYear,
       raw.isActive,
+      raw.createdAt,
+      raw.updatedAt,
     );
   }
 

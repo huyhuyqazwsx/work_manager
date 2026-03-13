@@ -5,7 +5,8 @@ export class EmailQueue {
 
   constructor(
     public readonly id: string,
-    public readonly email: string,
+    public readonly emailSend: string | null,
+    public readonly emailCC: string[],
     public readonly type: string,
     public readonly payload: Prisma.JsonValue,
     createdAt?: Date,

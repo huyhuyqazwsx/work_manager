@@ -1,8 +1,9 @@
-export class NotifyEmailResponse {
-  info: emailInfo[];
-}
-class emailInfo {
+export class EmailInfo {
   email: string;
   name: string;
   role: string;
+}
+
+export class NotifyEmailResponse {
+  info: EmailInfo[];
 }

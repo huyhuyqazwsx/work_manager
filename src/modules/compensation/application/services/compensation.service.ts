@@ -19,7 +19,8 @@ export class CompensationService
   }
 
   async earnHours(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     hours: number,
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
@@ -27,23 +28,30 @@ export class CompensationService
       throw new BadRequestException('Hours must be greater than 0');
     }
 
-    const balance = await this.getBalanceByUserId(userId, tx);
+    const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
     balance.addHours(hours);
     await this.compensationRepository.update(balance.id, balance, tx);
     return balance;
   }
 
   async getBalanceByUserId(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
     const balance = await this.compensationRepository.findBalanceByUserId(
-      userId,
+      userCode,
+      targetYear,
       tx,
     );
 
     if (!balance) {
-      const newBalance = new CompensationBalance(randomUUID(), userId, 0);
+      const newBalance = new CompensationBalance(
+        randomUUID(),
+        userCode,
+        targetYear,
+        0,
+      );
       await this.compensationRepository.save(newBalance, tx);
       return newBalance;
     }
@@ -52,7 +60,8 @@ export class CompensationService
   }
 
   async deductHours(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     hours: number,
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
@@ -60,7 +69,7 @@ export class CompensationService
       throw new BadRequestException('Hours must be greater than 0');
     }
 
-    const balance = await this.getBalanceByUserId(userId, tx);
+    const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
 
     if (!balance.canDeduct(hours)) {
       throw new BadRequestException(

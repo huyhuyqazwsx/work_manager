@@ -1,40 +1,23 @@
-import {
-  IsArray,
-  IsDateString,
-  IsEmail,
-  IsString,
-  Matches,
-} from 'class-validator';
+import { IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { CreateOTTicketItemDto } from './create-ot-ticket-item.dto';
 
 export class PreviewOTPlanDto {
-  @ApiProperty({ example: '2024-01-15' })
-  @IsDateString()
-  startDate: string;
-
-  @ApiProperty({ example: '2024-01-20' })
-  @IsDateString()
-  endDate: string;
-
-  @ApiProperty({ example: '18:00' })
-  @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
-    message: 'startTime must be HH:mm',
-  })
-  startTime: string;
-
-  @ApiProperty({ example: '22:00' })
-  @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'endTime must be HH:mm' })
-  endTime: string;
-
-  @ApiProperty({ type: [String] })
+  @ApiProperty({ type: [CreateOTTicketItemDto] })
   @IsArray()
-  @IsEmail()
-  emails: string[];
+  @ValidateNested({ each: true })
+  @Type(() => CreateOTTicketItemDto)
+  tickets: CreateOTTicketItemDto[];
+}
+
+export class PreviewWarningItem {
+  employeeCode: string;
+  date: string;
+  warnings: string[];
 }
 
 export class PreviewOTPlanResponseDto {
-  warnings: Record<string, string[]>;
+  warnings: PreviewWarningItem[];
   hasWarnings: boolean;
 }

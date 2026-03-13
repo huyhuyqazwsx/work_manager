@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
@@ -51,7 +50,6 @@ export class CreateLeaveRequestDto {
 
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsString()
-  @IsEmail()
   @IsOptional()
   emailLeader?: string;
 }

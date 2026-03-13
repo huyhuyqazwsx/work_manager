@@ -20,9 +20,16 @@ import { UpdateOTPlanDto } from '@modules/ot-plan/application/dto/update-ot-plan
 import {
   PreviewOTPlanDto,
   PreviewOTPlanResponseDto,
+  PreviewWarningItem,
 } from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import * as userRepositoryInterface from '@modules/user/domain/repositories/user.repository.interface';
+import { CreateOTTicketItemDto } from '../dto/create-ot-ticket-item.dto';
+import { Prisma } from '@prisma/client';
+import {
+  TicketPayload,
+  TicketPayloadItem,
+} from '@domain/type/ticket-payload.type';
 
 @Injectable()
 export class OTPlanService
@@ -44,6 +51,8 @@ export class OTPlanService
     super(otPlanRepository);
   }
 
+  // ===== Public =====
+
   async getPlanById(planId: string): Promise<OTPlan> {
     const plan = await this.otPlanRepository.findById(planId);
     if (!plan) throw new NotFoundException(`OTPlan not found: "${planId}"`);
@@ -59,16 +68,15 @@ export class OTPlanService
   }
 
   async createPlan(dto: CreateOTPlanDto): Promise<OTPlan> {
-    if (!dto.emails || dto.emails.length === 0) {
-      throw new BadRequestException('Plan must have at least one user');
+    if (!dto.tickets || dto.tickets.length === 0) {
+      throw new BadRequestException('Plan must have at least one ticket');
     }
 
-    const userIds = await this.userRepository.getIdsByEmails(dto.emails);
-    if (userIds.notFound.length > 0) {
-      throw new BadRequestException(
-        `User not found. : ${userIds.notFound.join(', ')}`,
-      );
-    }
+    await this.validateEmployeeCodes(dto.tickets);
+
+    const { planStartDate, planEndDate } = this.resolvePlanDateRange(
+      dto.tickets,
+    );
 
     const plan = new OTPlan(
       randomUUID(),
@@ -76,11 +84,9 @@ export class OTPlanService
       dto.managerId,
       dto.reason,
       OTPlanStatus.DRAFT,
-      new Date(dto.startDate),
-      new Date(dto.endDate),
-      dto.startTime,
-      dto.endTime,
-      userIds.inSystem,
+      planStartDate,
+      planEndDate,
+      this.buildPayload(dto.tickets),
       null,
       null,
       null,
@@ -100,19 +106,17 @@ export class OTPlanService
     }
 
     if (dto.reason !== undefined) plan.reason = dto.reason;
-    if (dto.startDate !== undefined) plan.startDate = new Date(dto.startDate);
-    if (dto.endDate !== undefined) plan.endDate = new Date(dto.endDate);
-    if (dto.startTime !== undefined) plan.startTime = dto.startTime;
-    if (dto.endTime !== undefined) plan.endTime = dto.endTime;
-    if (dto.emails !== undefined) {
-      const userIds = await this.userRepository.getIdsByEmails(dto.emails);
-      if (userIds.notFound.length > 0) {
-        throw new BadRequestException(
-          `User not found. : ${userIds.notFound.join(', ')}`,
-        );
-      }
 
-      plan.userIds = userIds.inSystem;
+    if (dto.tickets !== undefined) {
+      await this.validateEmployeeCodes(dto.tickets);
+
+      const { planStartDate, planEndDate } = this.resolvePlanDateRange(
+        dto.tickets,
+      );
+
+      plan.startDate = planStartDate;
+      plan.endDate = planEndDate;
+      plan.ticketPayload = this.buildPayload(dto.tickets);
     }
 
     await this.otPlanRepository.update(plan.id, plan);
@@ -154,7 +158,7 @@ export class OTPlanService
 
     plan.approve(approvedBy);
 
-    const tickets = this.buildTickets(plan);
+    const tickets = await this.buildTicketsFromPayload(plan);
 
     await this.otPlanRepository.runInTransaction(
       async (tx: PrismaTransactionClient) => {
@@ -241,28 +245,219 @@ export class OTPlanService
   }
 
   async previewPlan(dto: PreviewOTPlanDto): Promise<PreviewOTPlanResponseDto> {
+    await this.validateEmployeeCodes(dto.tickets);
+
+    const codeToId = await this.resolveCodeToIdMap(dto.tickets);
     const otConfig = await this.policyService.getActiveOTConfig();
-    const warnings: Record<string, string[]> = {};
 
-    const tickets = await this.buildTicketsFromDto(dto);
+    const tickets = this.buildTicketsFromItems(
+      randomUUID(),
+      dto.tickets.map((t) => ({
+        ...t,
+        userId: codeToId.get(t.employeeCode)!,
+      })),
+    );
 
-    await Promise.all(
+    const idToCode = new Map<string, string>(
+      dto.tickets.map((t) => [codeToId.get(t.employeeCode)!, t.employeeCode]),
+    );
+
+    const warningResults = await Promise.all(
       tickets.map(async (ticket) => {
-        const ticketWarnings = await this.validateTicketHours(ticket, otConfig);
-        if (ticketWarnings.length > 0) {
-          const key = `${ticket.userId}_${ticket.workDate.toDateString()}`;
-          warnings[key] = ticketWarnings;
-        }
+        const warnings = await this.validateTicketHours(ticket, otConfig);
+        return { ticket, warnings };
       }),
     );
 
+    const warningItems: PreviewWarningItem[] = warningResults
+      .filter(({ warnings }) => warnings.length > 0)
+      .map(({ ticket, warnings }) => ({
+        employeeCode: idToCode.get(ticket.userId) ?? ticket.userId,
+        date: ticket.workDate.toISOString().split('T')[0],
+        warnings,
+      }));
+
     return {
-      warnings,
-      hasWarnings: Object.keys(warnings).length > 0,
+      warnings: warningItems,
+      hasWarnings: warningItems.length > 0,
     };
   }
 
   // ===== Private =====
+
+  private parseTicketPayload(raw: Prisma.JsonValue): TicketPayload | null {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return null;
+    }
+
+    const obj = raw as Record<string, Prisma.JsonValue>;
+    const rawTickets = obj['tickets'];
+
+    if (!Array.isArray(rawTickets)) return null;
+
+    const tickets: TicketPayloadItem[] = [];
+
+    for (const t of rawTickets) {
+      if (typeof t !== 'object' || t === null || Array.isArray(t)) continue;
+
+      const item = t as Record<string, Prisma.JsonValue>;
+
+      if (
+        typeof item['employeeCode'] !== 'string' ||
+        typeof item['startDate'] !== 'string' ||
+        typeof item['endDate'] !== 'string' ||
+        typeof item['startTime'] !== 'string' ||
+        typeof item['endTime'] !== 'string'
+      )
+        continue;
+
+      tickets.push({
+        employeeCode: item['employeeCode'],
+        startDate: item['startDate'],
+        endDate: item['endDate'],
+        startTime: item['startTime'],
+        endTime: item['endTime'],
+      });
+    }
+
+    return { tickets };
+  }
+
+  private async validateEmployeeCodes(
+    tickets: CreateOTTicketItemDto[],
+  ): Promise<void> {
+    const codes = tickets.map((t) => t.employeeCode);
+    const { notFound } = await this.userRepository.getIdsByCodes(codes);
+
+    if (notFound.length > 0) {
+      throw new BadRequestException(
+        `Employee codes not found: ${notFound.join(', ')}`,
+      );
+    }
+  }
+
+  private async resolveCodeToIdMap(
+    tickets: CreateOTTicketItemDto[],
+  ): Promise<Map<string, string>> {
+    const codes = tickets.map((t) => t.employeeCode);
+    const { inSystem, notFound } =
+      await this.userRepository.getIdsByCodes(codes);
+
+    const foundCodes = codes.filter((c) => !notFound.includes(c));
+    return new Map<string, string>(foundCodes.map((c, i) => [c, inSystem[i]]));
+  }
+
+  private buildPayload(tickets: CreateOTTicketItemDto[]): TicketPayload {
+    return {
+      tickets: tickets.map((t) => ({
+        employeeCode: t.employeeCode,
+        startDate: t.startDate,
+        endDate: t.endDate,
+        startTime: t.startTime,
+        endTime: t.endTime,
+      })),
+    };
+  }
+
+  private resolvePlanDateRange(tickets: CreateOTTicketItemDto[]): {
+    planStartDate: Date;
+    planEndDate: Date;
+  } {
+    const allStartDates = tickets.map((t) => new Date(t.startDate).getTime());
+    const allEndDates = tickets.map((t) => new Date(t.endDate).getTime());
+
+    return {
+      planStartDate: new Date(Math.min(...allStartDates)),
+      planEndDate: new Date(Math.max(...allEndDates)),
+    };
+  }
+
+  private async buildTicketsFromPayload(plan: OTPlan): Promise<OTTicket[]> {
+    const payload = this.parseTicketPayload(plan.ticketPayload);
+    if (!payload || payload.tickets.length === 0) return [];
+
+    const dtoItems: CreateOTTicketItemDto[] = payload.tickets.map((t) => {
+      const dto = new CreateOTTicketItemDto();
+      dto.employeeCode = t.employeeCode;
+      dto.startDate = t.startDate;
+      dto.endDate = t.endDate;
+      dto.startTime = t.startTime;
+      dto.endTime = t.endTime;
+      return dto;
+    });
+
+    const codeToId = await this.resolveCodeToIdMap(dtoItems);
+
+    const items: (TicketPayloadItem & { userId: string })[] = payload.tickets
+      .map((t) => {
+        const userId = codeToId.get(t.employeeCode);
+        if (!userId) return null;
+        return { ...t, userId };
+      })
+      .filter((t): t is TicketPayloadItem & { userId: string } => t !== null);
+
+    return this.buildTicketsFromItems(plan.id, items);
+  }
+
+  private buildTicketsFromItems(
+    planId: string,
+    items: (TicketPayloadItem & { userId: string })[],
+  ): OTTicket[] {
+    const tickets: OTTicket[] = [];
+
+    for (const item of items) {
+      const [startHour, startMin] = item.startTime.split(':').map(Number);
+      const [endHour, endMin] = item.endTime.split(':').map(Number);
+
+      const startTotalMin = startHour * 60 + startMin;
+      const endTotalMin = endHour * 60 + endMin;
+      const isOvernight = endTotalMin < startTotalMin;
+
+      const totalHours = isOvernight
+        ? (24 * 60 - startTotalMin + endTotalMin) / 60
+        : (endTotalMin - startTotalMin) / 60;
+
+      const current = new Date(item.startDate);
+      const endDate = new Date(item.endDate);
+
+      while (current <= endDate) {
+        const workDate = new Date(current);
+
+        const ticketStartTime = new Date(workDate);
+        ticketStartTime.setHours(startHour, startMin, 0, 0);
+
+        const ticketEndDate = isOvernight
+          ? new Date(workDate.getTime() + 24 * 60 * 60 * 1000)
+          : new Date(workDate);
+
+        const ticketEndTime = new Date(ticketEndDate);
+        ticketEndTime.setHours(endHour, endMin, 0, 0);
+
+        tickets.push(
+          new OTTicket(
+            randomUUID(),
+            planId,
+            item.userId,
+            null,
+            workDate,
+            ticketStartTime,
+            ticketEndTime,
+            Number(totalHours.toFixed(2)),
+            OTTicketStatus.SCHEDULED,
+            null,
+            null,
+            null,
+            null,
+            null,
+          ),
+        );
+
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    return tickets;
+  }
 
   private async validateTicketHours(
     ticket: OTTicket,
@@ -275,13 +470,13 @@ export class OTPlanService
       const midnight = new Date(ticket.workDate);
       midnight.setHours(24, 0, 0, 0);
 
-      const endDate = new Date(ticket.endTime);
-      endDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(ticket.endTime);
+      nextDay.setHours(0, 0, 0, 0);
 
       const hoursDay1 =
         (midnight.getTime() - ticket.startTime.getTime()) / (1000 * 60 * 60);
       const hoursDay2 =
-        (ticket.endTime.getTime() - endDate.getTime()) / (1000 * 60 * 60);
+        (ticket.endTime.getTime() - nextDay.getTime()) / (1000 * 60 * 60);
 
       const [usedDay1, usedDay2, usedThisMonth, usedThisYear] =
         await Promise.all([
@@ -289,7 +484,7 @@ export class OTPlanService
             ticket.userId,
             ticket.workDate,
           ),
-          this.otTicketService.sumHoursByUserAndDay(ticket.userId, endDate),
+          this.otTicketService.sumHoursByUserAndDay(ticket.userId, nextDay),
           this.otTicketService.sumHoursByUserAndMonth(
             ticket.userId,
             ticket.workDate,
@@ -306,13 +501,14 @@ export class OTPlanService
 
       if (usedDay1 + hoursDay1 > otConfig.maxHoursPerDay) {
         warnings.push(
-          `Ngày ${ticket.workDate.toDateString()}: Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
+          `Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày (đã dùng ${usedDay1}h)`,
         );
       }
 
       if (usedDay2 + hoursDay2 > otConfig.maxHoursPerDay) {
+        const nextDayStr = nextDay.toISOString().split('T')[0];
         warnings.push(
-          `Ngày ${endDate.toDateString()}: Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày`,
+          `Ngày ${nextDayStr}: Vượt giới hạn ${otConfig.maxHoursPerDay}h/ngày (đã dùng ${usedDay2}h)`,
         );
       }
 
@@ -351,97 +547,5 @@ export class OTPlanService
     }
 
     return warnings;
-  }
-
-  private buildTickets(plan: OTPlan): OTTicket[] {
-    return this.buildTicketsFromParams(
-      plan.id,
-      plan.startDate,
-      plan.endDate,
-      plan.startTime,
-      plan.endTime,
-      plan.userIds,
-    );
-  }
-
-  private async buildTicketsFromDto(
-    dto: PreviewOTPlanDto,
-  ): Promise<OTTicket[]> {
-    const userIds = await this.userRepository.getIdsByEmails(dto.emails);
-    if (userIds.notFound.length > 0) {
-      throw new BadRequestException(
-        `User not found. : ${userIds.notFound.join(', ')}`,
-      );
-    }
-
-    return this.buildTicketsFromParams(
-      randomUUID(),
-      new Date(dto.startDate),
-      new Date(dto.endDate),
-      dto.startTime,
-      dto.endTime,
-      userIds.inSystem,
-    );
-  }
-
-  private buildTicketsFromParams(
-    planId: string,
-    startDate: Date,
-    endDate: Date,
-    startTime: string,
-    endTime: string,
-    userIds: string[],
-  ): OTTicket[] {
-    const tickets: OTTicket[] = [];
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-
-    const startTotalMin = startHour * 60 + startMin;
-    const endTotalMin = endHour * 60 + endMin;
-
-    const isOvernight = endTotalMin < startTotalMin;
-
-    const totalHours = isOvernight
-      ? (24 * 60 - startTotalMin + endTotalMin) / 60
-      : (endTotalMin - startTotalMin) / 60;
-
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      for (const userId of userIds) {
-        const workDate = new Date(current);
-
-        const ticketStartTime = new Date(workDate);
-        ticketStartTime.setHours(startHour, startMin, 0, 0);
-
-        const ticketEndDate = isOvernight
-          ? new Date(workDate.getTime() + 24 * 60 * 60 * 1000)
-          : new Date(workDate);
-
-        const ticketEndTime = new Date(ticketEndDate);
-        ticketEndTime.setHours(endHour, endMin, 0, 0);
-
-        tickets.push(
-          new OTTicket(
-            randomUUID(),
-            planId,
-            userId,
-            null,
-            workDate,
-            ticketStartTime,
-            ticketEndTime,
-            Number(totalHours.toFixed(2)),
-            OTTicketStatus.SCHEDULED,
-            null, // plan
-            null, // result
-            null, // actualHours
-            null, // verifiedBy
-            null, // rejectNote
-          ),
-        );
-      }
-      current.setDate(current.getDate() + 1);
-    }
-
-    return tickets;
   }
 }

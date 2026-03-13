@@ -25,7 +25,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { LeaveEligibilityResponseDto } from '../../application/dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../../application/dto/create-leave-request.dto';
 import { RejectLeaveRequestDto } from '../../application/dto/reject-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
@@ -33,6 +32,8 @@ import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-
 import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
 import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { AnnualLeaveDashboardDto } from '@modules/leave/application/dto/leave-dashboard.dto';
+import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
 
 @ApiTags('Leave')
 @Controller('leave')
@@ -46,14 +47,6 @@ export class LeaveController {
   @ApiOperation({ summary: 'Get all leave requests' })
   async findAll(): Promise<LeaveRequest[]> {
     return this.leaveService.findAll();
-  }
-
-  @Get('eligibility/:userId')
-  @ApiOperation({ summary: 'Get leave eligibility of user' })
-  async getLeaveEligibility(
-    @Param('userId', new ParseUUIDPipe()) userId: string,
-  ): Promise<LeaveEligibilityResponseDto[]> {
-    return this.leaveService.getLeaveEligibility(userId);
   }
 
   @Get('user/:userId')
@@ -74,6 +67,25 @@ export class LeaveController {
     return this.leaveService.getLeaveRequestByManagerId(managerId, page, limit);
   }
 
+  @Get('me/:userId')
+  async getMyLeaveRequests(
+    @Param('userId', ParseUUIDPipe) userId: string,
+
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ): Promise<PaginatedLeaveRequests> {
+    return this.leaveService.getMyLeaveRequests(userId, page, limit);
+  }
+
+  @Get('dashboard/annual/:userId')
+  @ApiOperation({ summary: 'Get annual leave dashboard of user' })
+  @ApiResponse({ status: 200, type: AnnualLeaveDashboardDto })
+  async getAnnualLeaveDashboard(
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<AnnualLeaveDashboardDto> {
+    return this.leaveService.getAnnualLeaveDashboard(userId);
+  }
+
   @Get('notify/:userId')
   @ApiOperation({ summary: 'Get notify email receivers for leave workflow' })
   @ApiResponse({
@@ -85,6 +97,14 @@ export class LeaveController {
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ): Promise<NotifyEmailResponse> {
     return this.leaveService.getNotifyInfo(userId);
+  }
+
+  @Get('range/:userId')
+  async getRangeExistLeaveRequest(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('year', ParseIntPipe) year: number,
+  ): Promise<RangeExistDto> {
+    return this.leaveService.getRangeExistLeaveRequest(userId, year);
   }
 
   @Get(':userId')
@@ -103,7 +123,6 @@ export class LeaveController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Attachment (jpg, jpeg, png, webp - max 5MB)',
         },
         userId: { type: 'string', example: 'uuid-user-id' },
         leaveTypeCode: { type: 'string', example: 'ANNUAL_LEAVE' },
@@ -124,7 +143,9 @@ export class LeaveController {
         fileIsRequired: false,
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
-          new FileTypeValidator({ fileType: /(pdf|jpg|png|svg)$/ }),
+          new FileTypeValidator({
+            fileType: /(pdf|jpg|png)$/i,
+          }),
         ],
       }),
     )

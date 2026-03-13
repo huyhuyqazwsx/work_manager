@@ -10,7 +10,7 @@ export interface IBaseMapper<Domain, Persistence> {
 
 export type PrismaDelegate<T> = {
   findUnique(args: {
-    where: { id: string };
+    where: Record<string, unknown>;
     include?: Record<string, boolean | object>;
     select?: Partial<Record<keyof T, boolean>>;
   }): Promise<T | null>;

@@ -14,6 +14,7 @@ export class UserAuth {
     public role: UserRole,
 
     public departmentId: string,
+    public departmentName: string | null,
     public position: string,
     public contractType: ContractType,
 

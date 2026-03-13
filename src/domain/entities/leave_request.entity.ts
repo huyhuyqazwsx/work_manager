@@ -6,7 +6,7 @@ export class LeaveRequest {
 
   constructor(
     public readonly id: string,
-    public leaveTypeId: string,
+    public leaveTypeCode: string | null,
     public status: LeaveRequestStatus,
     public fromDate: Date,
     public toDate: Date,
@@ -20,6 +20,8 @@ export class LeaveRequest {
     public approvedBy: string | null,
     public paidPersonalEventCode: string | null,
     public attachmentUrl: string | null,
+    public emailSend: string | null,
+    public emailCC: string[],
     createdAt?: Date,
     approvedAt?: Date | null,
   ) {
@@ -50,9 +52,7 @@ export class LeaveRequest {
   }
 
   cancel(): void {
-    if (this.isApproved()) {
-      this.status = LeaveRequestStatus.CANCELLED;
-    }
+    this.status = LeaveRequestStatus.CANCELLED;
   }
 
   isPending(): boolean {

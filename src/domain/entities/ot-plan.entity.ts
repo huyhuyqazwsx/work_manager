@@ -1,5 +1,6 @@
 import { OTPlanStatus } from '../enum/enum';
 import { OTTicket } from '@domain/entities/ot-ticket.entity';
+import { Prisma } from '@prisma/client';
 
 export class OTPlan {
   public rejectedAt?: Date;
@@ -16,15 +17,13 @@ export class OTPlan {
     // Thời gian OT chung cho cả plan
     public startDate: Date,
     public endDate: Date,
-    public startTime: string, // HH:mm
-    public endTime: string, // HH:mm
-    // Danh sách userId tham gia
-    public userIds: string[],
+    // ticketPayload lưu dữ liệu tickets dạng JSON trước khi approve
+    public ticketPayload: Prisma.JsonValue | null,
     // Approve / Reject
     public rejectedBy: string | null,
     public rejectionNote: string | null,
     public approvedBy: string | null,
-    // Tickets sinh ra sau khi approve (không lưu vào plan, chỉ dùng in-memory)
+    // Tickets sau khi load từ DB (relation)
     public tickets: OTTicket[] = [],
     createdAt?: Date,
     updatedAt?: Date,
@@ -91,7 +90,7 @@ export class OTPlan {
     return this.isDraft();
   }
   canSubmit(): boolean {
-    return this.isDraft() && this.userIds.length > 0;
+    return this.isDraft() && this.tickets.length > 0;
   }
   canApprove(): boolean {
     return this.isPending();

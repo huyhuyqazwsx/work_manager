@@ -13,6 +13,7 @@ export class UserMapper {
       raw.status as UserStatus,
       raw.role as UserRole,
       raw.departmentId,
+      raw.departmentName,
       raw.position,
       raw.contractType as ContractType,
       raw.joinDate,

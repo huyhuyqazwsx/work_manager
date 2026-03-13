@@ -3,7 +3,8 @@ import { IBaseRepository } from '@domain/repositories/base.repository';
 
 export interface ICompensationRepository extends IBaseRepository<CompensationBalance> {
   findBalanceByUserId(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     tx?: unknown,
   ): Promise<CompensationBalance | null>;
 }

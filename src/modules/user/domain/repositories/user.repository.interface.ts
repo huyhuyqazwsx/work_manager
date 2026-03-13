@@ -12,6 +12,7 @@ export interface IUserRepository extends IBaseRepository<UserAuth> {
   classifyAccounts(mails: string[]): Promise<AccountStatusBuckets>;
   count(): Promise<number>;
   getIdsByEmails(mails: string[]): Promise<AccountIdsInfo>;
+  getIdsByCodes(codes: string[]): Promise<AccountIdsInfo>;
   getInfoNotifyEmail(
     byRoles: UserRole[],
     includeManager: boolean,

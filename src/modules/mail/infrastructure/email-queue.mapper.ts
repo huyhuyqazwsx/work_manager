@@ -6,7 +6,8 @@ export class EmailQueueMapper {
   static toDomain(raw: PrismaEmailQueue): EmailQueue {
     return new EmailQueue(
       raw.id,
-      raw.email,
+      raw.emailSend,
+      raw.emailCC,
       raw.type,
       raw.payload,
       raw.createdAt,
@@ -16,7 +17,8 @@ export class EmailQueueMapper {
   static toPersistence(entity: EmailQueue) {
     return {
       id: entity.id,
-      email: entity.email,
+      emailSend: entity.emailSend,
+      emailCC: entity.emailCC,
       type: entity.type,
       payload: entity.payload,
       createdAt: entity.createdAt,

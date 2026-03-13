@@ -5,17 +5,18 @@ export class CompensationBalanceMapper {
   static toDomain(raw: PrismaCompensationBalance): CompensationBalance {
     return new CompensationBalance(
       raw.id,
-      raw.userId,
+      raw.userCode,
+      raw.year,
       raw.hours,
       raw.updatedAt,
     );
   }
 
   static toPersistence(
-    department: CompensationBalance | Partial<CompensationBalance>,
+    entity: CompensationBalance | Partial<CompensationBalance>,
   ): Record<string, any> {
     return {
-      ...department,
+      ...entity,
     };
   }
 }

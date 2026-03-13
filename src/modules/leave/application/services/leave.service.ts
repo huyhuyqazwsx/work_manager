@@ -12,6 +12,7 @@ import { ILeaveService } from '../interfaces/leave.service.interface';
 import * as leaveRepositoryInterface from '../../domain/repositories/leave.repository.interface';
 import * as holidayServiceInterface from '../../../holiday/application/interfaces/holiday.service.interface';
 import {
+  EmailType,
   HolidaySession,
   LeaveRequestStatus,
   LeaveTypeCode,
@@ -19,7 +20,6 @@ import {
   UserRole,
 } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
-import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import * as leaveTypeServiceInterface from '../../../leave-type/application/interfaces/leave-type.service.interface';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
 import { UserAuth } from '@domain/entities/userAuth.entity';
@@ -34,6 +34,11 @@ import { StorageService } from '@infra/storage/storage.service';
 import * as compensationServiceInterface from '@modules/compensation/application/interfaces/compensation.service.interface';
 import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
 import * as userRepositoryInterface from '@modules/user/domain/repositories/user.repository.interface';
+import { AnnualLeaveDashboardDto } from '@modules/leave/application/dto/leave-dashboard.dto';
+import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
+import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import * as mailServiceInterface from '@modules/mail/application/interfaces/mail.service.interface';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class LeaveService
@@ -60,24 +65,10 @@ export class LeaveService
     private readonly storageService: StorageService,
     @Inject('ICompensationService')
     private readonly compensationService: compensationServiceInterface.ICompensationService,
+    @Inject('IMailService')
+    private readonly mailService: mailServiceInterface.IMailService,
   ) {
     super(leaveRepository);
-  }
-
-  async getLeaveEligibility(
-    userId: string,
-  ): Promise<LeaveEligibilityResponseDto[]> {
-    const targetYear = new Date().getFullYear();
-
-    const [user, annualLeaveType] = await Promise.all([
-      this.userService.findUserById(userId),
-      this.leaveTypeService.findByCode(LeaveTypeCode.ANNUAL),
-    ]);
-
-    if (!user) throw new NotFoundException('User not found');
-    if (!annualLeaveType) return [];
-
-    return [await this.handleAnnualLeave(annualLeaveType, user, targetYear)];
   }
 
   async getLeaveRequestByManagerId(
@@ -98,6 +89,14 @@ export class LeaveService
     );
   }
 
+  async getMyLeaveRequests(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedLeaveRequests> {
+    return await this.leaveRepository.getMyLeaveRequests(userId, page, limit);
+  }
+
   async findByUserId(userId: string): Promise<LeaveRequest[]> {
     return this.leaveRepository.getByUserId(userId);
   }
@@ -109,20 +108,46 @@ export class LeaveService
     const startDate = new Date(dto.fromDate);
     const endDate = new Date(dto.toDate);
 
-    const [user, leaveType] = await Promise.all([
+    const [user, leaveType, infoLeaveDays] = await Promise.all([
       this.userService.findUserById(dto.userId),
       this.leaveTypeService.findByCode(dto.leaveTypeCode),
+      this.validateLeaveRequest(
+        startDate,
+        endDate,
+        dto.fromSession,
+        dto.toSession,
+      ),
     ]);
 
     if (!user) throw new NotFoundException('User not found');
     if (!leaveType) throw new NotFoundException('Leave type not found');
 
-    const { actualLeaveDays } = await this.validateLeaveRequest(
+    const overlapping = await this.leaveRepository.findOverlapping(
+      dto.userId,
       startDate,
       endDate,
-      dto.fromSession,
-      dto.toSession,
     );
+
+    const conflicts = overlapping.filter((existing) =>
+      this.isOverlapping(
+        existing,
+        startDate,
+        endDate,
+        dto.fromSession,
+        dto.toSession,
+      ),
+    );
+
+    if (conflicts.length > 0) {
+      const conflict = conflicts[0];
+      throw new BadRequestException(
+        `Leave request overlaps with an existing request from ` +
+          `${conflict.fromDate.toDateString()} (${conflict.fromSession}) ` +
+          `to ${conflict.toDate.toDateString()} (${conflict.toSession})`,
+      );
+    }
+
+    const actualLeaveDays = infoLeaveDays.actualLeaveDays;
 
     const currentBalance = await this.resolveBalance(
       leaveType,
@@ -136,7 +161,7 @@ export class LeaveService
 
     const leaveRequest = new LeaveRequest(
       randomUUID(),
-      leaveType.id,
+      leaveType.code,
       LeaveRequestStatus.PENDING,
       startDate,
       endDate,
@@ -150,10 +175,23 @@ export class LeaveService
       null,
       null,
       null,
+      null,
+      [],
     );
 
-    await this.leaveRepository.save(leaveRequest);
-    void this.notifyApprover(leaveRequest, user, dto.emailLeader);
+    await this.leaveRepository.runInTransaction(
+      async (tx: PrismaTransactionClient) => {
+        await this.leaveRepository.save(leaveRequest, tx);
+
+        await this.notifyApprover(
+          leaveRequest,
+          user,
+          dto.emailLeader,
+          EmailType.CREATE_LEAVE_REQUEST,
+          tx,
+        );
+      },
+    );
 
     if (file) {
       void this.uploadAttachmentAsync(leaveRequest.id, dto.userId, file);
@@ -219,15 +257,6 @@ export class LeaveService
       );
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (leaveRequest.fromDate <= today) {
-      throw new BadRequestException(
-        'Cannot cancel leave request after start date',
-      );
-    }
-
     leaveRequest.cancel();
 
     await this.leaveRepository.update(leaveRequestId, leaveRequest);
@@ -244,14 +273,13 @@ export class LeaveService
     endDate.setHours(23, 59, 59, 999);
 
     const [user, leaveType] = await Promise.all([
-      this.userService.findUserById(dto.userId),
-      this.leaveTypeService.findById(dto.leaveTypeId),
+      this.userRepository.findByCode(dto.userCode),
+      this.leaveTypeService.findByCode(dto.leaveTypeCode),
     ]);
 
     if (!leaveType) throw new NotFoundException('Leave type not found');
     if (!user) throw new NotFoundException('User not found');
 
-    // Tính số ngày thực tế, nếu range không hợp lệ thì actualLeaveDays = 0
     type LeaveCalculationResult = {
       totalCalendarDays: number;
       weekendDays: number;
@@ -270,9 +298,8 @@ export class LeaveService
         dto.toSession,
       );
     } catch (err) {
-      if (err instanceof BadRequestException) {
-        throw err;
-      }
+      if (err instanceof BadRequestException) throw err;
+
       result = {
         actualLeaveDays: 0,
         totalCalendarDays: 0,
@@ -282,17 +309,20 @@ export class LeaveService
       };
     }
 
-    const { actualLeaveDays } = result;
+    const { actualLeaveDays, weekendDays, holidayDays } = result;
 
-    // Lấy balance hiện tại theo leaveType
     const currentBalance = await this.resolveBalance(
       leaveType,
       user,
       dto.paidPersonalEventCode,
     );
 
-    const remainingAfterRequest =
-      currentBalance === -1 ? -1 : currentBalance - actualLeaveDays;
+    // this.logger.debug(currentBalance);
+
+    const paidDays = Math.min(actualLeaveDays, currentBalance);
+
+    const unpaidDays =
+      currentBalance === -1 ? 0 : Math.max(0, actualLeaveDays - paidDays);
 
     const warnings: string[] = [];
 
@@ -302,17 +332,20 @@ export class LeaveService
       );
     }
 
-    if (remainingAfterRequest < 0) {
+    if (unpaidDays > 0) {
       warnings.push(
-        `Insufficient balance: need ${actualLeaveDays} days but only ${currentBalance} remaining`,
-      );
-    } else if (remainingAfterRequest <= 2 && currentBalance !== -1) {
-      warnings.push(
-        `Low balance: only ${remainingAfterRequest} days remaining after this request`,
+        `This request includes ${unpaidDays} unpaid leave day(s) due to insufficient balance.`,
       );
     }
 
-    return { actualLeaveDays, remainingAfterRequest, warnings };
+    return {
+      actualLeaveDays,
+      paidDays,
+      unpaidDays,
+      weekendDays,
+      holidayDays,
+      warnings,
+    };
   }
 
   async getNotifyInfo(userId: string): Promise<NotifyEmailResponse> {
@@ -345,64 +378,122 @@ export class LeaveService
         return { info: [] };
     }
   }
-  // ================ Private =========================
 
-  private async handleAnnualLeave(
-    leaveType: LeaveType,
-    user: UserAuth,
-    targetYear: number,
-  ): Promise<LeaveEligibilityResponseDto> {
-    if (!user.isOfficialEmployee()) {
-      return {
-        leaveTypeCode: leaveType.code,
-        leaveTypeName: leaveType.name,
-        totalAllowedDays: 0,
-        usedDays: 0,
-        remainingDays: 0,
-        isEligible: false,
-        reason: `Contract type "${user.contractType}" is not eligible for annual leave`,
-      };
-    }
+  async getAnnualLeaveDashboard(
+    userId: string,
+  ): Promise<AnnualLeaveDashboardDto> {
+    const targetYear = new Date().getFullYear();
 
+    const [user, annualLeaveType] = await Promise.all([
+      this.userService.findUserById(userId),
+      this.leaveTypeService.findByCode(LeaveTypeCode.ANNUAL),
+    ]);
+
+    if (!user) throw new NotFoundException('User not found');
+    if (!annualLeaveType)
+      throw new NotFoundException('Annual leave type not found');
+
+    // ===== Total allowed =====
     const leaveConfig = await this.policyService
       .getLeaveConfig(user.contractType)
       .catch(() => null);
 
-    if (!leaveConfig || !leaveConfig.isActive) {
+    if (!leaveConfig?.isActive) {
       return {
-        leaveTypeCode: leaveType.code,
-        leaveTypeName: leaveType.name,
         totalAllowedDays: 0,
-        usedDays: 0,
-        remainingDays: 0,
-        isEligible: false,
-        reason: 'Annual leave configuration not found',
+        usedPaidDays: 0,
+        usedUnpaidDays: 0,
+        remainingPaidDays: 0,
+        totalDays: 0,
+        compensationHours: 0,
       };
     }
+
+    const totalBase = leaveConfig.getTotalBase(user.joinDate, targetYear);
+    const compensation = await this.compensationService.getBalanceByUserId(
+      user.code!,
+      targetYear,
+    );
+
+    const compensationHours = compensation.hours;
 
     const totalAllowedDays = leaveConfig.calculateAllowedDays({
       signDate: user.joinDate,
       targetYear,
     });
 
-    const usedDays = await this.leaveRepository.calculatorUsedDay(
+    // ===== Aggregate used & pending =====
+    const summary = await this.leaveRepository.getAnnualLeaveSummary(
+      userId,
       targetYear,
-      leaveType.id,
     );
-    const remainingDays = Math.max(0, totalAllowedDays - usedDays);
+
+    const usedPaidDays = summary?.usedPaidDays ?? 0;
+    const usedUnpaidDays = summary?.usedUnpaidDays ?? 0;
+    const totalDays = summary?.totalDays ?? 0;
+
+    const remainingPaidDays = Math.max(0, totalAllowedDays - usedPaidDays);
 
     return {
-      leaveTypeCode: leaveType.code,
-      leaveTypeName: leaveType.name,
-      totalAllowedDays,
-      usedDays,
-      remainingDays,
-      isEligible: remainingDays > 0,
-      reason:
-        remainingDays <= 0
-          ? 'Annual leave balance exhausted for this year'
-          : null,
+      totalAllowedDays: totalBase,
+      usedPaidDays,
+      usedUnpaidDays,
+      remainingPaidDays,
+      totalDays,
+      compensationHours,
     };
+  }
+
+  async getRangeExistLeaveRequest(
+    userId: string,
+    targetYear: number,
+  ): Promise<RangeExistDto> {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) throw new NotFoundException('User does not exist');
+
+    return this.leaveRepository.getRangeExistLeaveRequest(userId, targetYear);
+  }
+  // ================ Private =========================
+  private isOverlapping(
+    existing: LeaveRequest,
+    newFrom: Date,
+    newTo: Date,
+    newFromSession: HolidaySession,
+    newToSession: HolidaySession,
+  ): boolean {
+    const existStart = new Date(existing.fromDate);
+    const existEnd = new Date(existing.toDate);
+    const newStart = new Date(newFrom);
+    const newEnd = new Date(newTo);
+
+    existStart.setHours(
+      existing.fromSession === HolidaySession.MORNING ? 12 : 18,
+      0,
+      0,
+      0,
+    );
+    existEnd.setHours(
+      existing.toSession === HolidaySession.MORNING ? 12 : 18,
+      0,
+      0,
+      0,
+    );
+
+    newStart.setHours(
+      newFromSession === HolidaySession.MORNING ? 12 : 18,
+      0,
+      0,
+      0,
+    );
+    newEnd.setHours(newToSession === HolidaySession.MORNING ? 12 : 18, 0, 0, 0);
+
+    const existStartTime = existStart.getTime();
+    const existEndTime = existEnd.getTime();
+    const newStartTime = newStart.getTime();
+    const newEndTime = newEnd.getTime();
+
+    return !(newEndTime < existStartTime || newStartTime > existEndTime);
   }
 
   private async resolveBalance(
@@ -425,9 +516,13 @@ export class LeaveService
       });
 
       const usedDays = await this.leaveRepository.calculatorUsedDay(
+        user.id,
         targetYear,
-        leaveType.id,
+        leaveType.code,
       );
+      //
+      // this.logger.debug(totalAllowedDays);
+      // this.logger.debug(usedDays);
 
       return Math.max(0, totalAllowedDays - usedDays);
     }
@@ -453,6 +548,7 @@ export class LeaveService
     if (leaveType.isCompensatoryLeave()) {
       const balance = await this.compensationService.getBalanceByUserId(
         user.id,
+        targetYear,
       );
 
       return balance.getBalanceInDays();
@@ -482,24 +578,99 @@ export class LeaveService
     leaveRequest: LeaveRequest,
     user: UserAuth,
     emailLeader?: string,
+    emailType?: EmailType,
+    tx?: PrismaTransactionClient,
   ): Promise<void> {
-    const department = await this.departmentService.findById(user.departmentId);
+    const result = await this.getNotifyInfo(user.id);
 
-    if (!department) throw new NotFoundException('Department not found');
-    if (!department.managerId) {
-      throw new NotFoundException(`Manager not found for ${department.name}`);
+    let emailSend: string | null = null;
+    let managerName: string | null = null;
+    const emailCC: string[] = [];
+
+    for (const notifyUser of result.info) {
+      const role = notifyUser.role as UserRole;
+
+      if (role === UserRole.BOD || role === UserRole.DEPARTMENT_HEAD) {
+        if (!emailSend) {
+          emailSend = notifyUser.email;
+          managerName = notifyUser.name;
+        } else {
+          emailCC.push(notifyUser.email);
+        }
+      } else {
+        emailCC.push(notifyUser.email);
+      }
     }
 
-    const [manager, hr] = await Promise.all([
-      this.userService.findUserById(department.managerId),
-      this.userService.findUsersByRole(UserRole.HR),
-    ]);
+    if (emailLeader) {
+      const leader = await this.userRepository.findByEmail(emailLeader);
 
-    // TODO: send notification to manager and HR
-    this.logger.debug(manager);
-    this.logger.debug(hr);
-    this.logger.debug(leaveRequest);
-    this.logger.debug(emailLeader);
+      if (leader) {
+        emailCC.push(leader.email);
+      }
+    }
+
+    leaveRequest.emailSend = emailSend;
+    leaveRequest.emailCC = emailCC;
+    await this.leaveRepository.update(leaveRequest.id, leaveRequest, tx);
+
+    if (emailType && emailSend) {
+      let payload: Prisma.JsonObject | null = null;
+
+      switch (emailType) {
+        case EmailType.CREATE_LEAVE_REQUEST:
+          payload = {
+            employeeName: user.fullName,
+            employeeCode: user.code,
+            departmentName: user.departmentName,
+
+            leaveTypeCode: leaveRequest.leaveTypeCode,
+
+            fromDate: leaveRequest.fromDate.toISOString(),
+            toDate: leaveRequest.toDate.toISOString(),
+
+            fromSession: leaveRequest.fromSession,
+            toSession: leaveRequest.toSession,
+
+            totalDays: leaveRequest.totalDays,
+            reason: leaveRequest.reason,
+
+            managerName: managerName ?? 'Không tên',
+
+            actionLink: 'test',
+          };
+          break;
+
+        case EmailType.CANCELLED_LEAVE_REQUEST:
+          payload = {};
+          break;
+
+        case EmailType.APPROVED_LEAVE_REQUEST:
+          payload = {};
+          break;
+
+        case EmailType.REJECTED_LEAVE_REQUEST:
+          payload = {};
+          break;
+
+        default:
+          return;
+      }
+
+      this.logger.debug(payload);
+
+      await this.mailService.create(
+        {
+          id: randomUUID(),
+          type: emailType,
+          emailSend,
+          emailCC,
+          payload,
+          createdAt: new Date(),
+        },
+        tx,
+      );
+    }
   }
 
   private async validateLeaveRequest(

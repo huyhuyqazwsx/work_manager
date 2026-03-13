@@ -6,7 +6,7 @@ export class LeaveRequestMapper {
   static toDomain(raw: PrismaLeaveRequest): LeaveRequest {
     return new LeaveRequest(
       raw.id,
-      raw.leaveTypeId,
+      raw.leaveTypeCode,
       raw.status as LeaveRequestStatus,
       raw.fromDate,
       raw.toDate,
@@ -20,6 +20,8 @@ export class LeaveRequestMapper {
       raw.approvedBy,
       raw.paidPersonalEventCode,
       raw.attachmentUrl,
+      raw.emailSend,
+      raw.emailCC,
       raw.createdAt,
       raw.approvedAt,
     );

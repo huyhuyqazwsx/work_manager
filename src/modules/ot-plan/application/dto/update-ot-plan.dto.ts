@@ -1,46 +1,18 @@
+import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsDateString,
-  IsEmail,
-  IsOptional,
-  IsString,
-  Matches,
-} from 'class-validator';
+import { CreateOTTicketItemDto } from './create-ot-ticket-item.dto';
 
 export class UpdateOTPlanDto {
   @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
+  @IsOptional()
   reason?: string;
 
-  @ApiPropertyOptional({ example: '2024-01-15' })
-  @IsOptional()
-  @IsDateString()
-  startDate?: string;
-
-  @ApiPropertyOptional({ example: '2024-01-20' })
-  @IsOptional()
-  @IsDateString()
-  endDate?: string;
-
-  @ApiPropertyOptional({ example: '18:00' })
-  @IsOptional()
-  @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
-    message: 'startTime must be HH:mm',
-  })
-  startTime?: string;
-
-  @ApiPropertyOptional({ example: '22:00' })
-  @IsOptional()
-  @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'endTime must be HH:mm' })
-  endTime?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
+  @ApiPropertyOptional({ type: [CreateOTTicketItemDto] })
   @IsArray()
-  @IsEmail()
-  emails?: string[];
+  @ValidateNested({ each: true })
+  @Type(() => CreateOTTicketItemDto)
+  @IsOptional()
+  tickets?: CreateOTTicketItemDto[];
 }

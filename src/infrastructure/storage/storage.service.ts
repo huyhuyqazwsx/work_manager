@@ -30,7 +30,7 @@ export class StorageService implements OnModuleInit {
     userId: string,
     file: Express.Multer.File,
   ): Promise<string> {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowed.includes(file.mimetype)) {
       throw new InternalServerErrorException('Only image files are allowed');
     }
@@ -98,12 +98,7 @@ export class StorageService implements OnModuleInit {
       {
         public: true,
         fileSizeLimit: 5242880, // 5MB
-        allowedMimeTypes: [
-          'image/jpeg',
-          'image/png',
-          'image/webp',
-          'image/gif',
-        ],
+        allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
       },
     );
 

@@ -3,16 +3,19 @@ import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interfac
 
 export interface ICompensationService extends IBaseCrudService<CompensationBalance> {
   getBalanceByUserId(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     tx?: unknown,
   ): Promise<CompensationBalance>;
   earnHours(
     userId: string,
+    targetYear: number,
     hours: number,
     tx?: unknown,
   ): Promise<CompensationBalance>;
   deductHours(
     userId: string,
+    targetYear: number,
     hours: number,
     tx?: unknown,
   ): Promise<CompensationBalance>;

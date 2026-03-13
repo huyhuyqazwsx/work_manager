@@ -115,6 +115,7 @@ export class OTTicketService
       if (ticket.isCompensation() && ticket.actualHours) {
         await this.compensationService.earnHours(
           ticket.userId,
+          ticket.workDate.getFullYear(),
           ticket.actualHours,
           tx,
         );

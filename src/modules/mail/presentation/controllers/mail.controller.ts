@@ -47,15 +47,18 @@ export class MailController {
       dto.to,
       {
         employeeName: dto.employeeName,
-        employeeId: dto.employeeId,
-        leaveTypeName: dto.leaveTypeName,
+        employeeCode: dto.employeeCode,
+        departmentName: dto.departmentName,
+        leaveTypeCode: dto.leaveTypeCode,
+
         fromDate: dto.fromDate,
-        fromTime: dto.fromTime,
         toDate: dto.toDate,
-        toTime: dto.toTime,
+        fromSession: dto.fromSession,
+        toSession: dto.toSession,
+
         totalDays: dto.totalDays,
         reason: dto.reason,
-        note: dto.note,
+
         managerName: dto.managerName,
         actionLink: dto.actionLink,
       },

@@ -1,11 +1,19 @@
 export class OTConfig {
+  public readonly createdAt: Date;
+  public updatedAt: Date;
+
   constructor(
     public readonly id: string,
     public maxHoursPerDay: number,
     public maxHoursPerMonth: number,
     public maxHoursPerYear: number,
     public isActive: boolean,
-  ) {}
+    createdAt?: Date,
+    updatedAt?: Date,
+  ) {
+    this.createdAt = createdAt ?? new Date();
+    this.updatedAt = updatedAt ?? new Date();
+  }
 
   validateHours(params: {
     requestedHours: number;

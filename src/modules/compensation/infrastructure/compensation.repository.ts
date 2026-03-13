@@ -24,11 +24,12 @@ export class PrismaCompensationRepository
   }
 
   async findBalanceByUserId(
-    userId: string,
+    userCode: string,
+    targetYear: number,
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance | null> {
     const raw = await this.getModel(tx).findFirst({
-      where: { userId },
+      where: { userCode, year: targetYear },
     });
 
     return raw ? CompensationBalanceMapper.toDomain(raw) : null;

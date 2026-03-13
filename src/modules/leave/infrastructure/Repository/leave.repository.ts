@@ -9,7 +9,12 @@ import { ILeaveRequestRepository } from '../../domain/repositories/leave.reposit
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { LeaveRequestMapper } from './leave.mapper';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
-import { LeaveRequestStatus } from '@domain/enum/enum';
+import {
+  HolidaySession,
+  LeaveRequestStatus,
+  LeaveTypeCode,
+} from '@domain/enum/enum';
+import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
 
 @Injectable()
 export class PrismaLeaveRequestRepository
@@ -84,9 +89,42 @@ export class PrismaLeaveRequestRepository
     };
   }
 
+  async getMyLeaveRequests(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedLeaveRequests> {
+    const skip = (page - 1) * limit;
+
+    const where = { createdBy: userId };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.leaveRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.leaveRequest.count({ where }),
+    ]);
+
+    const data = rows.map((r) => LeaveRequestMapper.toDomain(r));
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async calculatorUsedDay(
+    userId: string,
     targetYear: number,
-    leaveTypeId: string,
+    leaveTypeCode: string,
   ): Promise<number> {
     const startOfYear = new Date(targetYear, 0, 1); // 1/1/targetYear
     const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59, 999); // 31/12/targetYear
@@ -94,7 +132,8 @@ export class PrismaLeaveRequestRepository
     const result = await this.prisma.leaveRequest.aggregate({
       _sum: { paidDays: true },
       where: {
-        leaveTypeId,
+        createdBy: userId,
+        leaveTypeCode: leaveTypeCode,
         status: {
           in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED],
         },
@@ -104,5 +143,110 @@ export class PrismaLeaveRequestRepository
     });
 
     return result._sum.paidDays ?? 0;
+  }
+
+  async getAnnualLeaveSummary(
+    userId: string,
+    year: number,
+  ): Promise<{
+    usedPaidDays: number;
+    usedUnpaidDays: number;
+    totalDays: number;
+  }> {
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999);
+
+    const [annualSummary, unpaidSummary] = await Promise.all([
+      // Query cho Annual Leave
+      this.prisma.leaveRequest.aggregate({
+        where: {
+          createdBy: userId,
+          leaveTypeCode: LeaveTypeCode.ANNUAL,
+          status: {
+            in: [LeaveRequestStatus.APPROVED, LeaveRequestStatus.PENDING],
+          },
+          fromDate: { gte: startOfYear, lte: endOfYear },
+        },
+        _sum: {
+          paidDays: true,
+          totalDays: true,
+        },
+      }),
+
+      // Query unpaid của tất cả leave
+      this.prisma.leaveRequest.aggregate({
+        where: {
+          createdBy: userId,
+          status: {
+            in: [LeaveRequestStatus.APPROVED, LeaveRequestStatus.PENDING],
+          },
+          fromDate: { gte: startOfYear, lte: endOfYear },
+        },
+        _sum: {
+          unpaidDays: true,
+        },
+      }),
+    ]);
+
+    return {
+      usedPaidDays: annualSummary._sum.paidDays ?? 0,
+      usedUnpaidDays: unpaidSummary._sum.unpaidDays ?? 0,
+      totalDays: annualSummary._sum.totalDays ?? 0,
+    };
+  }
+
+  async findOverlapping(
+    userId: string,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<LeaveRequest[]> {
+    const raws = await this.prisma.leaveRequest.findMany({
+      where: {
+        createdBy: userId,
+        status: {
+          in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED],
+        },
+        fromDate: { lte: toDate },
+        toDate: { gte: fromDate },
+      },
+    });
+
+    return raws.map((r) => LeaveRequestMapper.toDomain(r));
+  }
+
+  async getRangeExistLeaveRequest(
+    userId: string,
+    targetYear: number,
+  ): Promise<RangeExistDto> {
+    const startOfYear = new Date(targetYear, 0, 1);
+    const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59, 999);
+
+    const raws = await this.prisma.leaveRequest.findMany({
+      where: {
+        createdBy: userId,
+        status: {
+          in: [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED],
+        },
+        AND: [
+          { fromDate: { lte: endOfYear } },
+          { toDate: { gte: startOfYear } },
+        ],
+      },
+      select: {
+        fromDate: true,
+        toDate: true,
+        fromSession: true,
+        toSession: true,
+      },
+    });
+
+    return {
+      range: raws.map((r) => ({
+        fromDate: r.fromDate,
+        toDate: r.toDate,
+        fromSession: r.fromSession as HolidaySession,
+        toSession: r.toSession as HolidaySession,
+      })),
+    };
   }
 }

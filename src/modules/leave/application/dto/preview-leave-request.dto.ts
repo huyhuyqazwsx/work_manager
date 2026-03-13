@@ -1,27 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsDateString, IsEnum, IsString, IsOptional } from 'class-validator';
 import {
-  IsUUID,
-  IsDateString,
-  IsEnum,
-  IsString,
-  IsOptional,
-} from 'class-validator';
-import { HolidaySession, PaidPersonalEventCode } from '@domain/enum/enum';
+  HolidaySession,
+  LeaveTypeCode,
+  PaidPersonalEventCode,
+} from '@domain/enum/enum';
 
 export class PreviewLeaveRequestDto {
   @ApiProperty({
-    description: 'User ID requesting leave',
-    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'User Code',
+    example: 'SG*',
   })
-  @IsUUID()
-  userId: string;
+  @IsString()
+  userCode: string;
 
   @ApiProperty({
-    description: 'Leave type ID',
-    example: '8d7c0f8a-1b2c-4d5e-9f01-23456789abcd',
+    description: 'Leave type Code',
+    example: 'ANNUAL_LEAVE',
   })
-  @IsUUID()
-  leaveTypeId: string;
+  @IsEnum(LeaveTypeCode)
+  leaveTypeCode: string;
 
   @ApiPropertyOptional({ example: PaidPersonalEventCode.CHILD_MARRIAGE })
   @IsString()

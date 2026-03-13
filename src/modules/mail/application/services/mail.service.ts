@@ -11,6 +11,7 @@ import { EmailType } from '@domain/enum/enum';
 import { InviteEmailPayload } from '@modules/mail/helper/mail-helper';
 import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as emailQueueRepositoryInterface from '@modules/mail/domain/email-queue.repository.interface';
+import { LeaveRequestEmailPayload } from '@domain/type/mail.types';
 
 @Injectable()
 export class MailService
@@ -42,23 +43,11 @@ export class MailService
 
   async sendLeaveRequest(
     to: string | string[],
-    params: {
-      employeeName: string;
-      employeeId: string;
-      leaveTypeName: string;
-      fromDate: string;
-      fromTime?: string;
-      toDate: string;
-      toTime?: string;
-      totalDays: number;
-      reason?: string | null;
-      note?: string | null;
-      managerName: string;
-      actionLink: string;
-    },
+    params: LeaveRequestEmailPayload,
     cc?: string | string[],
   ): Promise<void> {
-    const subject = `[SkyCorp HRM] Yêu cầu duyệt phép ngày ${params.fromDate} - ${params.employeeName}`;
+    const subject = `[SkyCorp HRM] ${params.departmentName} - ${params.employeeName} nghỉ phép ${params.fromDate} → ${params.toDate}`;
+
     const html = buildLeaveRequestTemplate(params);
 
     try {
@@ -69,9 +58,10 @@ export class MailService
         subject,
         html,
       });
+
       this.logger.log(`Leave request email sent: ${info.messageId}`);
     } catch (error) {
-      this.logger.error(`Failed to send leave request email`, error);
+      this.logger.error(`Failed to send leave request email`, error as Error);
       throw new Error('Failed to send leave request email');
     }
   }
@@ -158,7 +148,7 @@ export class MailService
                 )!;
 
                 await this.cache.set(
-                  `verification:${job.email}`,
+                  `verification:${job.emailSend}`,
                   payload.verificationToken,
                   ttl,
                 );
@@ -168,7 +158,23 @@ export class MailService
                 //   payload.verificationToken,
                 // );
 
-                this.logger.log(`Verification email processed: ${job.email}`);
+                this.logger.log(
+                  `Verification email processed: ${job.emailSend}`,
+                );
+                break;
+              }
+
+              case EmailType.CREATE_LEAVE_REQUEST: {
+                const payload =
+                  job.payload as unknown as LeaveRequestEmailPayload;
+
+                // await this.sendLeaveRequest(
+                //   job.emailSend ?? [],
+                //   payload,
+                //   job.emailCC,
+                // );
+
+                this.logger.log(job);
                 break;
               }
 

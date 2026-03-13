@@ -20,6 +20,7 @@ model User {
   status             String    // PENDING | ACTIVE | INACTIVE
   role               String    // EMPLOYEE | DEPARTMENT_HEAD | HR | BOD
   departmentId       String    @db.Uuid
+  departmentName     String?
   position           String
   contractType       String    // Intern | Trainee | Probation | Official Employee
   joinDate           DateTime
@@ -59,7 +60,7 @@ model LeaveType {
 
 model LeaveRequest {
   id                    String          @id @default(uuid()) @db.Uuid
-  leaveTypeId           String          @db.Uuid
+  leaveTypeCode         String?
   status                String          // PENDING | APPROVED | REJECTED | CANCELLED
   reason                String?
   fromDate              DateTime
@@ -69,32 +70,19 @@ model LeaveRequest {
   totalDays             Float
   paidDays              Float @default(0)
   unpaidDays            Float @default(0)
-  createdBy             String          @db.Uuid
+  createdBy             String
   createdAt             DateTime        @default(now())
-  approvedBy            String?         @db.Uuid
+  approvedBy            String?
   approvedAt            DateTime?
   paidPersonalEventCode String?         // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL | null
-  attachmentUrl String?
+  attachmentUrl         String?
+  emailSend             String?
+  emailCC               String[]
 
-  @@index([createdBy, leaveTypeId])
+  @@index([createdBy, leaveTypeCode])
   @@index([status])
   @@index([fromDate, toDate])
   @@map("leave_requests")
-}
-
-// Track usage của Paid Personal Leave theo từng event
-model PaidPersonalLeaveUsage {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @db.Uuid
-  eventCode      String   // SELF_MARRIAGE | CHILD_MARRIAGE | FUNERAL
-  usedDays       Float
-  year           Int
-  leaveRequestId String   @db.Uuid
-
-  createdAt      DateTime @default(now())
-
-  @@index([userId, eventCode, year])
-  @@map("paid_personal_leave_usages")
 }
 
 // ============================================
@@ -108,18 +96,16 @@ model OTPlan {
   status        String    @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED
   startDate     DateTime  @db.Date
   endDate       DateTime  @db.Date
-  startTime     String    // HH:mm
-  endTime       String    // HH:mm
-  userIds       String[]  // danh sách userId
+  ticketPayload Json?
   rejectedBy    String?   @db.Uuid
   rejectedAt    DateTime?
   rejectionNote String?
-  approvedBy    String?   @db.Uuid
+  approvedBy    String?
   approvedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tickets OTTicket[]
+  tickets       OTTicket[]
 
   @@index([departmentId])
   @@index([managerId])
@@ -142,7 +128,7 @@ model OTTicket {
   plan        String?
   result      String?
   status      String    @default("SCHEDULED")
-  verifiedBy  String?   @db.Uuid
+  verifiedBy  String?
   verifiedAt  DateTime?
   rejectNote  String?
   createdAt   DateTime  @default(now())
@@ -179,24 +165,13 @@ model OTConfig {
 
 model CompensationBalance {
   id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid
+  userCode  String
+  year      Int
   hours     Float    @default(0)
   updatedAt DateTime @updatedAt
 
+  @@unique([userCode, year])
   @@map("compensation_balances")
-}
-
-model CompensationTransaction {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @db.Uuid
-  hours          Float
-  type           String   // EARNED | USED
-  otTicketId     String?  @db.Uuid
-  leaveRequestId String?  @db.Uuid
-  createdAt      DateTime @default(now())
-
-  @@index([userId])
-  @@map("compensation_transactions")
 }
 
 // ============================================
@@ -258,7 +233,8 @@ model PaidPersonalLeaveEvent {
 
 model EmailQueue {
   id        String   @id @default(uuid())
-  email     String
+  emailSend String?
+  emailCC   String[]
   type      String
   payload   Json
   createdAt DateTime @default(now())

@@ -145,6 +145,32 @@ export class PrismaUserRepository
     return result;
   }
 
+  async getIdsByCodes(codes: string[]): Promise<AccountIdsInfo> {
+    const result: AccountIdsInfo = {
+      inSystem: [],
+      notFound: [],
+    };
+    const users = await this.prisma.user.findMany({
+      where: {
+        code: { in: codes },
+      },
+      select: {
+        code: true,
+        id: true,
+      },
+    });
+
+    const userMap = new Map(users.map((u) => [u.code, u.id]));
+
+    for (const code of codes) {
+      const id = userMap.get(code);
+      if (!id) result.notFound.push(code);
+      else result.inSystem.push(id);
+    }
+
+    return result;
+  }
+
   async getInfoNotifyEmail(
     byRoles: UserRole[],
     includeManager: boolean,

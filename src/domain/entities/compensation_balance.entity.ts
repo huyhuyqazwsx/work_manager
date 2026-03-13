@@ -3,7 +3,8 @@ export class CompensationBalance {
 
   constructor(
     public readonly id: string,
-    public readonly userId: string,
+    public readonly userCode: string,
+    public readonly year: number,
     public hours: number,
     updatedAt?: Date,
   ) {

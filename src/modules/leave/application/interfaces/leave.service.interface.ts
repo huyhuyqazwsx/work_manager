@@ -1,11 +1,12 @@
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
-import { LeaveEligibilityResponseDto } from '../dto/leave-eligibility-response.dto';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { PreviewLeaveRequestDto } from '@modules/leave/application/dto/preview-leave-request.dto';
 import { PreviewLeaveResponseDto } from '@modules/leave/application/dto/preview-leave-response.dto';
 import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
+import { AnnualLeaveDashboardDto } from '@modules/leave/application/dto/leave-dashboard.dto';
+import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
 
 export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
   findByUserId(userId: string): Promise<LeaveRequest[]>;
@@ -14,8 +15,6 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
     dto: CreateLeaveRequestDto,
     file?: Express.Multer.File,
   ): Promise<LeaveRequest>;
-
-  getLeaveEligibility(userId: string): Promise<LeaveEligibilityResponseDto[]>;
 
   rejectLeaveRequest(
     leaveRequestId: string,
@@ -39,6 +38,12 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
     limit: number,
   ): Promise<PaginatedLeaveRequests>;
 
+  getMyLeaveRequests(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedLeaveRequests>;
+
   //Dùng để hiện cảnh báo cho phía fe thấy
   previewLeaveRequest(
     dto: PreviewLeaveRequestDto,
@@ -46,4 +51,13 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
 
   //Lấy thông tin email hr + trưởng phòng khi tạo form
   getNotifyInfo(userId: string): Promise<NotifyEmailResponse>;
+
+  //Lấy thông tin hiện dasdboard
+  getAnnualLeaveDashboard(userId: string): Promise<AnnualLeaveDashboardDto>;
+
+  //Lấy các khoảng thời gian đã tồn tại (PENDING + APPROVED) để preview tránh gửi
+  getRangeExistLeaveRequest(
+    userId: string,
+    targetYear: number,
+  ): Promise<RangeExistDto>;
 }
