@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { IOTPlanService } from '../interfaces/ot-plan.service.interface';
 import * as policyServiceInterface from '../../../policy/application/interfaces/policy.service.interface';
@@ -30,6 +25,7 @@ import {
   TicketPayload,
   TicketPayloadItem,
 } from '@domain/type/ticket-payload.type';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class OTPlanService
@@ -55,7 +51,12 @@ export class OTPlanService
 
   async getPlanById(planId: string): Promise<OTPlan> {
     const plan = await this.otPlanRepository.findById(planId);
-    if (!plan) throw new NotFoundException(`OTPlan not found: "${planId}"`);
+    if (!plan)
+      throw new AppException(
+        AppError.OT_PLAN_NOT_FOUND,
+        `OTPlan not found: "${planId}"`,
+        HttpStatus.NOT_FOUND,
+      );
     return plan;
   }
 
@@ -69,7 +70,11 @@ export class OTPlanService
 
   async createPlan(dto: CreateOTPlanDto): Promise<OTPlan> {
     if (!dto.tickets || dto.tickets.length === 0) {
-      throw new BadRequestException('Plan must have at least one ticket');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Plan must have at least one ticket',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     await this.validateEmployeeCodes(dto.tickets);
@@ -100,8 +105,10 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (!plan.isDraft()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot update plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -127,12 +134,18 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (plan.managerId !== managerId) {
-      throw new BadRequestException('You are not allowed to submit this plan');
+      throw new AppException(
+        AppError.OT_PLAN_FORBIDDEN,
+        'You are not allowed to submit this plan',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (!plan.canSubmit()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot submit plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -145,15 +158,26 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (!plan.canApprove()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot approve plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     const approver = await this.userService.findUserById(approvedBy);
-    if (!approver) throw new NotFoundException('Approver not found');
+    if (!approver)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Approver not found',
+        HttpStatus.NOT_FOUND,
+      );
     if (!approver.isBOD()) {
-      throw new BadRequestException('Only BOD can approve OT plans');
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
+        'Only BOD can approve OT plans',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     plan.approve(approvedBy);
@@ -178,15 +202,26 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (!plan.canReject()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot reject plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     const rejecter = await this.userService.findUserById(rejectedBy);
-    if (!rejecter) throw new NotFoundException('Rejecter not found');
+    if (!rejecter)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Rejecter not found',
+        HttpStatus.NOT_FOUND,
+      );
     if (!rejecter.isBOD()) {
-      throw new BadRequestException('Only BOD can reject OT plans');
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
+        'Only BOD can reject OT plans',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     plan.reject(rejectedBy, note);
@@ -198,12 +233,18 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (plan.managerId !== managerId) {
-      throw new BadRequestException('You are not allowed to revise this plan');
+      throw new AppException(
+        AppError.OT_PLAN_FORBIDDEN,
+        'You are not allowed to revise this plan',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (!plan.isRejected()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot revise plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -216,12 +257,18 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (plan.managerId !== managerId) {
-      throw new BadRequestException('You are not allowed to cancel this plan');
+      throw new AppException(
+        AppError.OT_PLAN_FORBIDDEN,
+        'You are not allowed to cancel this plan',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (!plan.isApproved()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot cancel plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -232,12 +279,18 @@ export class OTPlanService
     const plan = await this.getPlanById(planId);
 
     if (plan.managerId !== managerId) {
-      throw new BadRequestException('You are not allowed to delete this plan');
+      throw new AppException(
+        AppError.OT_PLAN_FORBIDDEN,
+        'You are not allowed to delete this plan',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (!plan.isDraft()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot delete plan with status "${plan.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -330,8 +383,10 @@ export class OTPlanService
     const { notFound } = await this.userRepository.getIdsByCodes(codes);
 
     if (notFound.length > 0) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
         `Employee codes not found: ${notFound.join(', ')}`,
+        HttpStatus.NOT_FOUND,
       );
     }
   }

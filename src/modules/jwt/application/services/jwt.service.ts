@@ -1,12 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Inject } from '@nestjs/common';
 import { IJwtService } from '../interfaces/jwt.service.inteface';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import { JwtPayload, TokenPair } from '@domain/type/jwt.types';
 import { StringValue } from 'ms';
 import { UserRole } from '@domain/enum/enum';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class AppJwtService implements IJwtService {
@@ -56,7 +56,11 @@ export class AppJwtService implements IJwtService {
   ): Promise<TokenPair> {
     const isValid = await this.validateRefreshToken(userId, oldRefreshToken);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new AppException(
+        AppError.AUTH_UNAUTHORIZED,
+        'Invalid or expired refresh token',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     await this.cacheRepository.delete(`refresh:${userId}`);

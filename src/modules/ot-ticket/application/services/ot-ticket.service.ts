@@ -1,15 +1,11 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { IOTTicketService } from '../interfaces/ot-ticket.service.interface';
 import * as otTicketRepositoryInterface from '../../domain/repositories/ot-ticket.repository.interface';
 import * as compensationServiceInterface from '../../../compensation/application/interfaces/compensation.service.interface';
 import { OTTicket } from '@domain/entities/ot-ticket.entity';
 import { OTType } from '@domain/enum/enum';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class OTTicketService
@@ -39,7 +35,12 @@ export class OTTicketService
   async getTicketById(ticketId: string): Promise<OTTicket> {
     const ticket = await this.otTicketRepository.findById(ticketId);
     if (!ticket)
-      throw new NotFoundException(`OTTicket not found: "${ticketId}"`);
+      if (!ticket)
+        throw new AppException(
+          AppError.OT_TICKET_NOT_FOUND,
+          `OTTicket not found: "${ticketId}"`,
+          HttpStatus.NOT_FOUND,
+        );
     return ticket;
   }
 
@@ -60,14 +61,18 @@ export class OTTicketService
     const ticket = await this.getTicketById(ticketId);
 
     if (ticket.userId !== userId) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_FORBIDDEN,
         'You are not allowed to check in this ticket',
+        HttpStatus.FORBIDDEN,
       );
     }
 
     if (!ticket.isScheduled()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_INVALID_STATUS,
         `Cannot check in ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -85,14 +90,18 @@ export class OTTicketService
     const ticket = await this.getTicketById(ticketId);
 
     if (ticket.userId !== userId) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_FORBIDDEN,
         'You are not allowed to check out this ticket',
+        HttpStatus.FORBIDDEN,
       );
     }
 
     if (!ticket.isInProgress()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_INVALID_STATUS,
         `Cannot check out ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -105,8 +114,10 @@ export class OTTicketService
     const ticket = await this.getTicketById(ticketId);
 
     if (!ticket.isCompleted()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_INVALID_STATUS,
         `Cannot verify ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -132,8 +143,10 @@ export class OTTicketService
     const ticket = await this.getTicketById(ticketId);
 
     if (!ticket.isCompleted()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_INVALID_STATUS,
         `Cannot reject ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -146,14 +159,18 @@ export class OTTicketService
     const ticket = await this.getTicketById(ticketId);
 
     if (ticket.userId !== userId) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_FORBIDDEN,
         'You are not allowed to cancel this ticket',
+        HttpStatus.FORBIDDEN,
       );
     }
 
     if (!ticket.isScheduled()) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_TICKET_INVALID_STATUS,
         `Cannot cancel ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 

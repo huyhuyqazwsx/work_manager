@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { IMailService } from '../interfaces/mail.service.interface';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
@@ -12,6 +12,7 @@ import { InviteEmailPayload } from '@modules/mail/helper/mail-helper';
 import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as emailQueueRepositoryInterface from '@modules/mail/domain/email-queue.repository.interface';
 import { LeaveRequestEmailPayload } from '@domain/type/mail.types';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class MailService
@@ -62,7 +63,11 @@ export class MailService
       this.logger.log(`Leave request email sent: ${info.messageId}`);
     } catch (error) {
       this.logger.error(`Failed to send leave request email`, error as Error);
-      throw new Error('Failed to send leave request email');
+      throw new AppException(
+        AppError.INTERNAL_ERROR,
+        'Failed to send leave request email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -125,7 +130,11 @@ export class MailService
       this.logger.debug(`Email sent successfully: ${info.messageId}`);
     } catch (error) {
       this.logger.error(`Failed to send email`, error);
-      throw new Error('Failed to send email');
+      throw new AppException(
+        AppError.INTERNAL_ERROR,
+        'Failed to send email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

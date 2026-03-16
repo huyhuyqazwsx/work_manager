@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { IUserService } from '../interfaces/user.service.interface';
 import { UserAuth } from '@domain/entities/userAuth.entity';
 import * as userRepositoryInterface from '../../domain/repositories/user.repository.interface';
@@ -22,6 +15,7 @@ import { UserResponseDto } from '@modules/user/application/dto/user-response.dto
 import * as departmentRepositoryInterface from '@modules/department/domain/repositories/department.repository.interface';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class UserService
@@ -88,7 +82,11 @@ export class UserService
   async createUser(user: UserAuth): Promise<void> {
     const existingUser = await this.userRepository.findByEmail(user.email);
     if (existingUser) {
-      throw new Error(`User with email ${user.email} already exists`);
+      throw new AppException(
+        AppError.USER_ALREADY_EXISTS,
+        `User with email ${user.email} already exists`,
+        HttpStatus.CONFLICT,
+      );
     }
 
     await this.userRepository.save(user);
@@ -100,7 +98,11 @@ export class UserService
     if (user.email) {
       const existingUser = await this.userRepository.findByEmail(user.email);
       if (existingUser && existingUser.id !== id) {
-        throw new Error(`Email ${user.email} is already taken`);
+        throw new AppException(
+          AppError.USER_ALREADY_EXISTS,
+          `Email ${user.email} is already taken`,
+          HttpStatus.CONFLICT,
+        );
       }
     }
 
@@ -166,8 +168,10 @@ export class UserService
     ]);
 
     if (deptBuckets.notFound.length > 0) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.NOT_FOUND,
         `Departments not found: ${deptBuckets.notFound.join(', ')}`,
+        HttpStatus.NOT_FOUND,
       );
     }
 
@@ -227,7 +231,11 @@ export class UserService
     const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     if (user.isActive()) {
@@ -235,22 +243,38 @@ export class UserService
     }
 
     if (user.isInactive()) {
-      throw new ForbiddenException('User is inactive');
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
+        'User is inactive',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     if (!user.isPending()) {
-      throw new BadRequestException('User not found status');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'User not found status',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const cacheKey = `verification:${email}`;
     const cachedToken = await this.cache.get<string>(cacheKey);
 
     if (!cachedToken) {
-      throw new BadRequestException('Verification token expired');
+      throw new AppException(
+        AppError.AUTH_INVALID_TOKEN,
+        'Verification token expired',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (cachedToken !== token) {
-      throw new BadRequestException('Invalid verification token');
+      throw new AppException(
+        AppError.AUTH_INVALID_TOKEN,
+        'Invalid verification token',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     await this.userRepository.update(user.id, {
@@ -264,7 +288,11 @@ export class UserService
     const user = await this.userRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     return user;
@@ -282,7 +310,11 @@ export class UserService
     const manager = await this.departmentRepository.findByManagerId(managerId);
 
     if (!manager) {
-      throw new NotFoundException('User not found');
+      throw new AppException(
+        AppError.DEPARTMENT_NOT_FOUND,
+        'Department not found',
+        HttpStatus.NOT_FOUND,
+      );
     }
     return this.userRepository.getUsersByUserOfDepartment(managerId);
   }

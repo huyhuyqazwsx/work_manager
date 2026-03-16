@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 
 import { IInviteService } from '../interface/IInviteService';
 import * as userServiceInterface from '../../../user/application/interfaces/user.service.interface';
@@ -20,6 +15,7 @@ import { validate } from 'class-validator';
 import { InviteUsersResult } from '../../../user/application/dto/invite-user-result.dto';
 import { InviteImportResponse } from '../dto/invite-import.response';
 import { UserStatus } from '@domain/enum/enum';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class InviteService implements IInviteService {
@@ -40,7 +36,11 @@ export class InviteService implements IInviteService {
     );
 
     if (!existsSync(filePath)) {
-      throw new NotFoundException(`Invite template not found`);
+      throw new AppException(
+        AppError.NOT_FOUND,
+        `Invite template not found`,
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     return readFileSync(filePath);
@@ -58,7 +58,12 @@ export class InviteService implements IInviteService {
       return UserStatus.ACTIVE;
     } else if (result.INACTIVE.length > 0) {
       return UserStatus.INACTIVE;
-    } else throw new NotFoundException(`User Status not found`);
+    } else
+      throw new AppException(
+        AppError.NOT_FOUND,
+        `User Status not found`,
+        HttpStatus.NOT_FOUND,
+      );
   }
 
   async importFromExcel(
@@ -90,7 +95,11 @@ export class InviteService implements IInviteService {
     file: Express.Multer.File,
   ): Promise<ExcelJS.Worksheet> {
     if (!file?.buffer) {
-      throw new BadRequestException('Invalid file buffer');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Invalid file buffer',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -100,7 +109,11 @@ export class InviteService implements IInviteService {
     const sheet = workbook.worksheets[0];
 
     if (!sheet) {
-      throw new BadRequestException('Sheet not found');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Sheet not found',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return sheet;
@@ -132,7 +145,11 @@ export class InviteService implements IInviteService {
     ];
 
     if (JSON.stringify(expectedHeaders) !== JSON.stringify(actualHeaders)) {
-      throw new BadRequestException('Invalid template format');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Invalid template format',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 

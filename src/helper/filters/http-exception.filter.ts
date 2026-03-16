@@ -67,6 +67,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       [HttpStatus.UNAUTHORIZED]: AppError.AUTH_UNAUTHORIZED,
       [HttpStatus.BAD_REQUEST]: AppError.BAD_REQUEST,
       [HttpStatus.INTERNAL_SERVER_ERROR]: AppError.INTERNAL_ERROR,
+      [HttpStatus.PAYLOAD_TOO_LARGE]: AppError.PAYLOAD_TOO_LARGE,
     };
 
     const msg =

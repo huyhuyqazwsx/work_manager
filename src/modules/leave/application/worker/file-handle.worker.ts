@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as fileUploadQueueRepositoryInterface from '@modules/leave/domain/repositories/file-upload-queue.repository.interface';
-import * as leaveRepositoryInterface from '@modules/leave/domain/repositories/leave.repository.interface';
 import { StorageService } from '@infra/storage/storage.service';
 import { Cron } from '@nestjs/schedule';
 import { promises as fs } from 'node:fs';
@@ -13,8 +12,6 @@ export class FileUploadCronJob {
   constructor(
     @Inject('IFileUploadQueueRepository')
     private readonly fileUploadQueueRepository: fileUploadQueueRepositoryInterface.IFileUploadQueueRepository,
-    @Inject('ILeaveRequestRepository')
-    private readonly leaveRepository: leaveRepositoryInterface.ILeaveRequestRepository,
     private readonly storageService: StorageService,
   ) {}
 
@@ -33,13 +30,19 @@ export class FileUploadCronJob {
             item.localPath,
           );
 
-          await Promise.all([
-            this.leaveRepository.update(item.leaveRequestId, {
-              attachmentUrl: cloudUrl,
-            }),
-            this.fileUploadQueueRepository.delete(item.id),
-            fs.unlink(item.localPath),
-          ]);
+          // atomic
+          await this.fileUploadQueueRepository.syncToCloud(
+            item.id,
+            item.leaveRequestId,
+            cloudUrl,
+          );
+
+          // xóa file local sau khi DB commit xong
+          await fs
+            .unlink(item.localPath)
+            .catch((err) =>
+              this.logger.warn(`Failed to unlink ${item.localPath}`, err),
+            );
 
           this.logger.log(`Synced ${item.id} → ${cloudUrl}`);
         } catch (err) {

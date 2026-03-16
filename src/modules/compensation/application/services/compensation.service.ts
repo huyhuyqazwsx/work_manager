@@ -1,10 +1,11 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { CompensationBalance } from '@domain/entities/compensation_balance.entity';
 import { ICompensationService } from '@modules/compensation/application/interfaces/compensation.service.interface';
 import * as compensationRepositoryInterface from '@modules/compensation/domain/repositories/compensation.repository.interface';
 import { randomUUID } from 'node:crypto';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class CompensationService
@@ -25,7 +26,11 @@ export class CompensationService
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
     if (hours <= 0) {
-      throw new BadRequestException('Hours must be greater than 0');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Hours must be greater than 0',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
@@ -66,14 +71,20 @@ export class CompensationService
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
     if (hours <= 0) {
-      throw new BadRequestException('Hours must be greater than 0');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Hours must be greater than 0',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
 
     if (!balance.canDeduct(hours)) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.BAD_REQUEST,
         `Insufficient balance. Available: ${balance.getBalance()}h, Required: ${hours}h`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 

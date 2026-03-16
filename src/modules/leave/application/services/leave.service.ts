@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
 import { ILeaveService } from '../interfaces/leave.service.interface';
@@ -40,6 +33,7 @@ import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import * as mailServiceInterface from '@modules/mail/application/interfaces/mail.service.interface';
 import { Prisma } from '@prisma/client';
 import * as fileUploadQueueRepositoryInterface from '@modules/leave/domain/repositories/file-upload-queue.repository.interface';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class LeaveService
@@ -81,7 +75,11 @@ export class LeaveService
   ): Promise<PaginatedLeaveRequests> {
     const department = await this.departmentService.findByManagerId(managerId);
     if (!department) {
-      throw new UnauthorizedException('Manager does not manage any department');
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
+        'Manager does not manage any department',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     return await this.leaveRepository.getLeaveRequestByManagerId(
@@ -123,8 +121,18 @@ export class LeaveService
       this.leaveRepository.findOverlapping(dto.userId, startDate, endDate),
     ]);
 
-    if (!user) throw new NotFoundException('User not found');
-    if (!leaveType) throw new NotFoundException('Leave type not found');
+    if (!user)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
+    if (!leaveType)
+      throw new AppException(
+        AppError.LEAVE_NOT_FOUND,
+        'Leave type not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     const conflicts = overlapping.filter((existing) =>
       this.isOverlapping(
@@ -138,10 +146,12 @@ export class LeaveService
 
     if (conflicts.length > 0) {
       const conflict = conflicts[0];
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.BAD_REQUEST,
         `Leave request overlaps with an existing request from ` +
           `${conflict.fromDate.toDateString()} (${conflict.fromSession}) ` +
           `to ${conflict.toDate.toDateString()} (${conflict.toSession})`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -210,11 +220,18 @@ export class LeaveService
     approverId: string,
   ): Promise<LeaveRequest> {
     const leaveRequest = await this.leaveRepository.findById(leaveRequestId);
-    if (!leaveRequest) throw new NotFoundException('Leave request not found');
+    if (!leaveRequest)
+      throw new AppException(
+        AppError.LEAVE_NOT_FOUND,
+        'Leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     if (leaveRequest.status !== LeaveRequestStatus.PENDING) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.OT_PLAN_INVALID_STATUS,
         `Cannot approve leave request with status "${leaveRequest.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -232,11 +249,18 @@ export class LeaveService
     reason?: string,
   ): Promise<LeaveRequest> {
     const leaveRequest = await this.leaveRepository.findById(leaveRequestId);
-    if (!leaveRequest) throw new NotFoundException('Leave request not found');
+    if (!leaveRequest)
+      throw new AppException(
+        AppError.LEAVE_NOT_FOUND,
+        'Leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     if (leaveRequest.status !== LeaveRequestStatus.PENDING) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.LEAVE_INVALID_STATUS,
         `Cannot reject leave request with status "${leaveRequest.status}"`,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -254,11 +278,18 @@ export class LeaveService
     userId: string,
   ): Promise<LeaveRequest> {
     const leaveRequest = await this.leaveRepository.findById(leaveRequestId);
-    if (!leaveRequest) throw new NotFoundException('Leave request not found');
+    if (!leaveRequest)
+      throw new AppException(
+        AppError.LEAVE_NOT_FOUND,
+        'Leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     if (leaveRequest.createdBy !== userId) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
         'You are not allowed to cancel this leave request',
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -282,8 +313,18 @@ export class LeaveService
       this.leaveTypeService.findByCode(dto.leaveTypeCode),
     ]);
 
-    if (!leaveType) throw new NotFoundException('Leave type not found');
-    if (!user) throw new NotFoundException('User not found');
+    if (!leaveType)
+      throw new AppException(
+        AppError.LEAVE_TYPE_NOT_FOUND,
+        'Leave type not found',
+        HttpStatus.NOT_FOUND,
+      );
+    if (!user)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     type LeaveCalculationResult = {
       totalCalendarDays: number;
@@ -303,7 +344,7 @@ export class LeaveService
         dto.toSession,
       );
     } catch (err) {
-      if (err instanceof BadRequestException) throw err;
+      if (err instanceof AppException) throw err;
 
       result = {
         actualLeaveDays: 0,
@@ -355,7 +396,12 @@ export class LeaveService
 
   async getNotifyInfo(userId: string): Promise<NotifyEmailResponse> {
     const user = await this.userRepository.findById(userId);
-    if (!user) throw new NotFoundException('User does not exist');
+    if (!user)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User does not exist',
+        HttpStatus.NOT_FOUND,
+      );
 
     switch (user.role) {
       case UserRole.EMPLOYEE:
@@ -394,9 +440,18 @@ export class LeaveService
       this.leaveTypeService.findByCode(LeaveTypeCode.ANNUAL),
     ]);
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
     if (!annualLeaveType)
-      throw new NotFoundException('Annual leave type not found');
+      throw new AppException(
+        AppError.LEAVE_TYPE_NOT_FOUND,
+        'Annual leave type not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     // ===== Total allowed =====
     const leaveConfig = await this.policyService
@@ -455,14 +510,24 @@ export class LeaveService
   ): Promise<RangeExistDto> {
     const user = await this.userRepository.findById(userId);
 
-    if (!user) throw new NotFoundException('User does not exist');
+    if (!user)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User does not exist',
+        HttpStatus.NOT_FOUND,
+      );
 
     return this.leaveRepository.getRangeExistLeaveRequest(userId, targetYear);
   }
 
   async getLeaveRequestByBod(bodId: string): Promise<LeaveRequest[]> {
     const bod = await this.userRepository.findById(bodId);
-    if (!bod?.isBOD()) throw new NotFoundException('Bod does not exist');
+    if (!bod?.isBOD())
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Bod does not exist',
+        HttpStatus.NOT_FOUND,
+      );
 
     return this.leaveRepository.getLeaveRequestByBod();
   }
@@ -542,8 +607,10 @@ export class LeaveService
 
     if (leaveType.isPaidPersonalLeave()) {
       if (!paidPersonalEventCode) {
-        throw new BadRequestException(
+        throw new AppException(
+          AppError.BAD_REQUEST,
           'paidPersonalEventCode is required for paid personal leave',
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -680,7 +747,11 @@ export class LeaveService
     actualLeaveDays: number;
   }> {
     if (startDate > endDate) {
-      throw new BadRequestException('Invalid date range');
+      throw new AppException(
+        AppError.LEAVE_INVALID_DATE_RANGE,
+        'Invalid date range',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return await this.holidayService.calculateLeaveDays(
@@ -700,21 +771,38 @@ export class LeaveService
       this.userService.findUserById(leaveRequest.createdBy),
     ]);
 
-    if (!approver) throw new NotFoundException('Approver not found');
-    if (!requestOwner) throw new NotFoundException('Request owner not found');
+    if (!approver)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Approver not found',
+        HttpStatus.NOT_FOUND,
+      );
+    if (!requestOwner)
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Request owner not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     if (approver.isBOD()) return;
 
     const department = await this.departmentService.findById(
       requestOwner.departmentId,
     );
-    if (!department) throw new NotFoundException('Department not found');
+    if (!department)
+      throw new AppException(
+        AppError.DEPARTMENT_NOT_FOUND,
+        'Department not found',
+        HttpStatus.NOT_FOUND,
+      );
 
     const isManager = department.managerId === approverId;
 
     if (!isManager) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.AUTH_FORBIDDEN,
         'You are not allowed to perform this action',
+        HttpStatus.FORBIDDEN,
       );
     }
   }

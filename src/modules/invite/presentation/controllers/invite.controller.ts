@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpStatus,
   Inject,
   Post,
   Res,
@@ -22,9 +22,10 @@ import express from 'express';
 import * as IInviteService from '../../application/interface/IInviteService';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InviteImportResponse } from '../../application/dto/invite-import.response';
-import { FileSizeExceptionFilter } from '../../../../helper/filter_file';
-import { UserStatus } from '../../../../domain/enum/enum';
+import { FileSizeExceptionFilter } from '@helper/filters/file-size.filter';
+import { UserStatus } from '@domain/enum/enum';
 import * as inviteTypes_1 from '../../../../domain/type/invite.types';
+import { AppError, AppException } from '@domain/errors';
 
 @ApiTags('Invites')
 @ApiBearerAuth()
@@ -78,12 +79,20 @@ export class InviteController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<InviteImportResponse> {
     if (!file) {
-      throw new BadRequestException('File is required');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'File is required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     //Check
     if (!file.originalname.endsWith('.xlsx')) {
-      throw new BadRequestException('Only .xlsx files are supported');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Only .xlsx files are supported',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.inviteService.importFromExcel(file);

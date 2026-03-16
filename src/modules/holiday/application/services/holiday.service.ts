@@ -1,10 +1,11 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { Holiday } from '@domain/entities/holiday.entity';
 import { IHolidayService } from '../interfaces/holiday.service.interface';
 import * as holidayRepositoryInterface from '../../domain/repositories/holiday.repository.interface';
 import { HolidaySession, HolidayType } from '@domain/enum/enum';
 import { randomUUID } from 'node:crypto';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class HolidayService
@@ -262,8 +263,10 @@ export class HolidayService
       fromSession === HolidaySession.AFTERNOON &&
       toSession === HolidaySession.MORNING
     ) {
-      throw new BadRequestException(
+      throw new AppException(
+        AppError.BAD_REQUEST,
         'Invalid session range: end session (Morning) cannot be before start session (Afternoon) on the same day',
+        HttpStatus.BAD_REQUEST,
       );
     }
 

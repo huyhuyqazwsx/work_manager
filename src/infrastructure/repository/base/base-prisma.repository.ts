@@ -2,6 +2,8 @@ import { IBaseRepository } from '@domain/repositories/base.repository';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import { AppError, AppException } from '@domain/errors';
+import { HttpStatus } from '@nestjs/common';
 
 export interface IBaseMapper<Domain, Persistence> {
   toDomain(raw: Persistence): Domain;
@@ -134,11 +136,23 @@ export abstract class BasePrismaRepository<
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       switch (error.code) {
         case 'P2002':
-          throw new Error('Unique constraint violation');
+          throw new AppException(
+            AppError.BAD_REQUEST,
+            'Unique constraint violation',
+            HttpStatus.BAD_REQUEST,
+          );
         case 'P2003':
-          throw new Error('Foreign key constraint failed');
+          throw new AppException(
+            AppError.BAD_REQUEST,
+            'Foreign key constraint failed',
+            HttpStatus.BAD_REQUEST,
+          );
         case 'P2025':
-          throw new Error('Record not found');
+          throw new AppException(
+            AppError.NOT_FOUND,
+            'Record not found',
+            HttpStatus.NOT_FOUND,
+          );
       }
     }
     throw error;

@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { JwtPayload } from '@domain/type/jwt.types';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class AccessTokenStrategy extends PassportStrategy(
@@ -27,7 +28,11 @@ export class AccessTokenStrategy extends PassportStrategy(
 
   validate(payload: JwtPayload): { userId: string; role: string } {
     if (!payload.sub || !payload.role) {
-      throw new UnauthorizedException();
+      throw new AppException(
+        AppError.AUTH_UNAUTHORIZED,
+        'Unauthorized',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
     return { userId: payload.sub, role: payload.role };
   }

@@ -1,15 +1,11 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, HttpStatus } from '@nestjs/common';
 import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { LeaveType } from '@domain/entities/leave_type.entity';
 import * as leaveTypeServiceInterface from '../interfaces/leave-type.service.interface';
 import * as leaveTypeRepositoryInterface from '../../domain/repositories/leave-type.repository.interface';
 import { randomUUID } from 'node:crypto';
 import { LeaveTypeCode } from '@domain/enum/enum';
+import { AppException, AppError } from '@domain/errors'; // thêm dòng này
 
 @Injectable()
 export class LeaveTypeService
@@ -37,11 +33,12 @@ export class LeaveTypeService
     isPaid?: boolean;
     deductCompensation?: boolean;
   }): Promise<LeaveType> {
-    // Check duplicate code
     const existing = await this.leaveTypeRepository.findByCode(dto.code);
     if (existing) {
-      throw new ConflictException(
+      throw new AppException(
+        AppError.BAD_REQUEST,
         `Leave type with code "${dto.code}" already exists`,
+        HttpStatus.CONFLICT,
       );
     }
 
@@ -68,7 +65,11 @@ export class LeaveTypeService
   ): Promise<LeaveType> {
     const leaveType = await this.leaveTypeRepository.findById(id);
     if (!leaveType) {
-      throw new NotFoundException(`Leave type ${id} not found`);
+      throw new AppException(
+        AppError.LEAVE_TYPE_NOT_FOUND,
+        `Leave type ${id} not found`,
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     if (dto.name) leaveType.updateName(dto.name);

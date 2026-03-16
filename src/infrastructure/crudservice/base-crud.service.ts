@@ -1,6 +1,7 @@
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
-import { NotFoundException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import { AppError, AppException } from '@domain/errors';
 
 interface ITransactionalRepository<T> {
   findById(id: string, tx?: PrismaTransactionClient): Promise<T | null>;
@@ -37,7 +38,12 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
 
   async findById(id: string, tx?: PrismaTransactionClient): Promise<T> {
     const entity = await this.repository.findById(id, tx);
-    if (!entity) throw new NotFoundException('Entity not found');
+    if (!entity)
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'Entity not found',
+        HttpStatus.NOT_FOUND,
+      );
     return entity;
   }
 
@@ -46,7 +52,12 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
   }
 
   async create(entity: T, tx?: PrismaTransactionClient): Promise<void> {
-    if (!entity) throw new Error('Entity is required');
+    if (!entity)
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Entity is required',
+        HttpStatus.BAD_REQUEST,
+      );
     await this.repository.save(entity, tx);
   }
 
@@ -56,13 +67,23 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
     tx?: PrismaTransactionClient,
   ): Promise<void> {
     const existing = await this.repository.findById(id, tx);
-    if (!existing) throw new NotFoundException('Entity not found');
+    if (!existing)
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'Entity not found',
+        HttpStatus.NOT_FOUND,
+      );
     await this.repository.update(id, entity, tx);
   }
 
   async delete(id: string, tx?: PrismaTransactionClient): Promise<void> {
     const existing = await this.repository.findById(id, tx);
-    if (!existing) throw new NotFoundException('Entity not found');
+    if (!existing)
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'Entity not found',
+        HttpStatus.NOT_FOUND,
+      );
     await this.repository.delete(id, tx);
   }
 
@@ -70,7 +91,12 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
     entities: T[],
     tx?: PrismaTransactionClient,
   ): Promise<number> {
-    if (!entities?.length) throw new Error('Entities are required');
+    if (!entities?.length)
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Entities are required',
+        HttpStatus.BAD_REQUEST,
+      );
     return this.repository.createMany(entities, tx);
   }
 
@@ -79,8 +105,18 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
     entity: Partial<T>,
     tx?: PrismaTransactionClient,
   ): Promise<number> {
-    if (!where) throw new Error('Where condition is required');
-    if (!entity) throw new Error('Entity is required');
+    if (!where)
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Where condition is required',
+        HttpStatus.BAD_REQUEST,
+      );
+    if (!entity)
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Entity is required',
+        HttpStatus.BAD_REQUEST,
+      );
     return this.repository.updateMany(where, entity, tx);
   }
 
@@ -88,7 +124,12 @@ export abstract class BaseCrudService<T> implements IBaseCrudService<T> {
     where: Partial<T>,
     tx?: PrismaTransactionClient,
   ): Promise<number> {
-    if (!where) throw new Error('Where condition is required');
+    if (!where)
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Where condition is required',
+        HttpStatus.BAD_REQUEST,
+      );
     return this.repository.deleteMany(where, tx);
   }
 }

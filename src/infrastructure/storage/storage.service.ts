@@ -1,15 +1,11 @@
-import {
-  Injectable,
-  OnModuleInit,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -37,7 +33,11 @@ export class StorageService implements OnModuleInit {
   ): Promise<string> {
     const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowed.includes(file.mimetype)) {
-      throw new InternalServerErrorException('Only image files are allowed');
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Only image files are allowed',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const ext = file.originalname.split('.').pop() ?? 'jpg';
@@ -55,10 +55,19 @@ export class StorageService implements OnModuleInit {
         typeof error === 'object' && 'message' in error
           ? String((error as { message: unknown }).message)
           : 'Upload failed';
-      throw new InternalServerErrorException(message);
+      throw new AppException(
+        AppError.INTERNAL_ERROR,
+        message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
 
-    if (!data) throw new InternalServerErrorException('Upload failed');
+    if (!data)
+      throw new AppException(
+        AppError.INTERNAL_ERROR,
+        'Upload failed',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
 
     return this.getPublicUrl(data.path);
   }
@@ -81,7 +90,11 @@ export class StorageService implements OnModuleInit {
         typeof error === 'object' && 'message' in error
           ? String((error as { message: unknown }).message)
           : 'Delete failed';
-      throw new InternalServerErrorException(message);
+      throw new AppException(
+        AppError.INTERNAL_ERROR,
+        message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

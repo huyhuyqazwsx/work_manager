@@ -1,45 +1,33 @@
-import { FileUploadQueue } from '@domain/entities/file-queue.entity';
 import { Injectable } from '@nestjs/common';
+import {
+  BasePrismaRepository,
+  PrismaDelegate,
+} from '@infra/repository/base/base-prisma.repository';
+import { FileUploadQueue } from '@domain/entities/file-queue.entity';
 import { IFileUploadQueueRepository } from '@modules/leave/domain/repositories/file-upload-queue.repository.interface';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
+import { FileUploadQueueMapper } from '@modules/leave/infrastructure/Repository/file-upload-queue.mapper';
+import { FileUploadQueue as PrismaFileUploadQueue } from '@prisma/client';
 
 @Injectable()
-export class PrismaFileUploadQueueRepository implements IFileUploadQueueRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async save(queue: FileUploadQueue): Promise<void> {
-    await this.prisma.fileUploadQueue.create({
-      data: {
-        id: queue.id,
-        leaveRequestId: queue.leaveRequestId,
-        localPath: queue.localPath,
-        retryCount: queue.retryCount,
-        createdAt: queue.createdAt,
-      },
-    });
-  }
-
-  async findPending(limit: number): Promise<FileUploadQueue[]> {
-    const raws = await this.prisma.fileUploadQueue.findMany({
-      where: { retryCount: { lt: 3 } },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
-    });
-
-    return raws.map(
-      (r) =>
-        new FileUploadQueue(
-          r.id,
-          r.leaveRequestId,
-          r.localPath,
-          r.retryCount,
-          r.createdAt,
-        ),
+export class PrismaFileUploadQueueRepository
+  extends BasePrismaRepository<FileUploadQueue, PrismaFileUploadQueue>
+  implements IFileUploadQueueRepository
+{
+  constructor(prisma: PrismaService) {
+    super(
+      prisma,
+      prisma.fileUploadQueue as unknown as PrismaDelegate<PrismaFileUploadQueue>,
+      FileUploadQueueMapper,
     );
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.fileUploadQueue.delete({ where: { id } });
+  async findPending(limit: number): Promise<FileUploadQueue[]> {
+    const raws = await this.prismaModel.findMany({
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+    return raws.map((r) => FileUploadQueueMapper.toDomain(r));
   }
 
   async incrementRetry(id: string): Promise<void> {
@@ -47,5 +35,21 @@ export class PrismaFileUploadQueueRepository implements IFileUploadQueueReposito
       where: { id },
       data: { retryCount: { increment: 1 } },
     });
+  }
+
+  async syncToCloud(
+    id: string,
+    leaveRequestId: string,
+    cloudUrl: string,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.leaveRequest.update({
+        where: { id: leaveRequestId },
+        data: { attachmentUrl: cloudUrl },
+      }),
+      this.prisma.fileUploadQueue.delete({
+        where: { id },
+      }),
+    ]);
   }
 }
