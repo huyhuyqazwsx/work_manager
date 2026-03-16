@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User as PrismaUser } from '@prisma/client';
 import { UserMapper } from './user.mapper';
 import { UserAuth } from '@domain/entities/userAuth.entity';
@@ -12,6 +12,7 @@ import { UserRole } from '@domain/enum/enum';
 import { AccountIdsInfo, AccountStatusBuckets } from '@domain/type/user.types';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
+import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
 
 @Injectable()
 export class PrismaUserRepository
@@ -203,5 +204,38 @@ export class PrismaUserRepository
         role: u.role,
       })),
     };
+  }
+  async getUsersByUserOfDepartment(
+    managerId: string,
+  ): Promise<UserInDepartmentDto[]> {
+    const manager = await this.prisma.user.findUnique({
+      where: { id: managerId },
+      select: { departmentId: true },
+    });
+
+    if (!manager) {
+      throw new NotFoundException('Manager not found');
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        departmentId: manager.departmentId,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        code: true,
+        fullName: true,
+      },
+      orderBy: {
+        fullName: 'asc',
+      },
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      code: u.code,
+      fullName: u.fullName,
+    }));
   }
 }

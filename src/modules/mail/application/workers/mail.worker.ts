@@ -5,20 +5,27 @@ import * as mailServiceInterface from '@modules/mail/application/interfaces/mail
 @Injectable()
 export class MailWorker {
   private readonly logger = new Logger(MailWorker.name);
+  private isProcessing = false;
+
   constructor(
     @Inject('IMailService')
     private readonly mailService: mailServiceInterface.IMailService,
   ) {}
 
-  // chạy mỗi 5 giây
   @Cron('*/5 * * * * *')
   async handleEmailQueue() {
-    this.logger.debug('Checking email queue...');
+    if (this.isProcessing) {
+      return;
+    }
+
+    this.isProcessing = true;
 
     try {
       await this.mailService.processEmailQueue();
     } catch (error) {
       this.logger.error('Email worker failed', error);
+    } finally {
+      this.isProcessing = false;
     }
   }
 }

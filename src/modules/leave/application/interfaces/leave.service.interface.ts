@@ -60,4 +60,7 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
     userId: string,
     targetYear: number,
   ): Promise<RangeExistDto>;
+
+  //Lấy leave request cho BOD
+  getLeaveRequestByBod(bodId: string): Promise<LeaveRequest[]>;
 }

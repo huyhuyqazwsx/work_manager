@@ -11,7 +11,7 @@ export class OTTicket {
     public readonly id: string,
     public readonly planId: string,
     public readonly userId: string,
-    public readonly otType: OTType | null, // COMPENSATION | SALARY
+    public otType: OTType | null, // COMPENSATION | SALARY
     public readonly workDate: Date, // ngày làm viec (Date only)
     public readonly startTime: Date, // datetime đầy đủ
     public readonly endTime: Date, // datetime đầy đủ (có thể sang ngày hôm sau nếu overnight)
@@ -34,6 +34,7 @@ export class OTTicket {
     this.checkOut = checkOut;
     this.verifiedAt = verifiedAt;
     this.status = status ?? OTTicketStatus.SCHEDULED;
+    this.otType = otType ?? OTType.COMPENSATION;
   }
 
   checkInNow(plan: string): void {

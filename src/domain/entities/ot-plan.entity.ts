@@ -85,12 +85,8 @@ export class OTPlan {
   isRejected(): boolean {
     return this.status === OTPlanStatus.REJECTED;
   }
-
-  canEdit(): boolean {
-    return this.isDraft();
-  }
   canSubmit(): boolean {
-    return this.isDraft() && this.tickets.length > 0;
+    return this.isDraft();
   }
   canApprove(): boolean {
     return this.isPending();

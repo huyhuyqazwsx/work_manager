@@ -249,4 +249,30 @@ export class PrismaLeaveRequestRepository
       })),
     };
   }
+
+  async getLeaveRequestByBod(): Promise<LeaveRequest[]> {
+    const managers = await this.prisma.department.findMany({
+      select: {
+        managerId: true,
+      },
+    });
+
+    const managerIds = managers
+      .map((d) => d.managerId)
+      .filter((id): id is string => id !== null);
+
+    const leaveRequests = await this.prisma.leaveRequest.findMany({
+      where: {
+        createdBy: {
+          in: managerIds,
+        },
+        status: LeaveRequestStatus.PENDING,
+      },
+      orderBy: {
+        fromDate: 'asc',
+      },
+    });
+
+    return leaveRequests.map((r) => LeaveRequestMapper.toDomain(r));
+  }
 }

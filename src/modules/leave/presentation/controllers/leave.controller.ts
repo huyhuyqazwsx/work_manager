@@ -22,6 +22,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -97,6 +98,17 @@ export class LeaveController {
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ): Promise<NotifyEmailResponse> {
     return this.leaveService.getNotifyInfo(userId);
+  }
+
+  @Get('bod/:bodId')
+  @ApiOperation({ summary: 'Get leave requests for BOD approval' })
+  @ApiParam({
+    name: 'bodId',
+    type: String,
+    description: 'BOD user ID',
+  })
+  getLeaveRequestByBod(@Param('bodId') bodId: string): Promise<LeaveRequest[]> {
+    return this.leaveService.getLeaveRequestByBod(bodId);
   }
 
   @Get('range/:userId')

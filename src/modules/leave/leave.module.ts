@@ -9,6 +9,8 @@ import { PolicyModule } from '../policy/policy.module';
 import { DepartmentModule } from '../department/department.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { CompensationModule } from '@modules/compensation/compensation.module';
+import { PrismaFileUploadQueueRepository } from '@modules/leave/infrastructure/Repository/file-upload-queue.repository';
+import { FileUploadCronJob } from '@modules/leave/application/worker/file-handle.worker';
 
 @Module({
   imports: [
@@ -29,6 +31,11 @@ import { CompensationModule } from '@modules/compensation/compensation.module';
       provide: 'ILeaveRequestRepository',
       useClass: PrismaLeaveRequestRepository,
     },
+    {
+      provide: 'IFileUploadQueueRepository',
+      useClass: PrismaFileUploadQueueRepository,
+    },
+    FileUploadCronJob,
   ],
   controllers: [LeaveController],
 })

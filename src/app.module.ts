@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppService } from './app.service';
 import { AuthModule } from '@modules/auth/auth.module';
 import { UserModule } from '@modules/user/user.module';
@@ -18,6 +18,8 @@ import { CompensationModule } from '@modules/compensation/compensation.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { OTTicketModule } from '@modules/ot-ticket/ot-ticket.module';
 import { OTPlanModule } from '@modules/ot-plan/ot-plan.module';
+import { AppJwtModule } from '@modules/jwt/jwt.module';
+import { LoggerMiddleware } from '@src/common/middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -42,7 +44,12 @@ import { OTPlanModule } from '@modules/ot-plan/ot-plan.module';
     CompensationModule,
     OTTicketModule,
     OTPlanModule,
+    AppJwtModule,
   ],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

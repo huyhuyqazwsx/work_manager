@@ -18,6 +18,8 @@ import { ResendInviteDto } from '../../application/dto/resend-invite.dto';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dtto';
 import { AccessTokenGuard } from '../../../jwt/guards/access-token.guard';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
+import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
+import { ApiOperation, ApiParam } from '@nestjs/swagger';
 
 @Controller('user')
 export class UserController {
@@ -32,6 +34,19 @@ export class UserController {
     @Req() req: Request & { user: { userId: string; role: string } },
   ) {
     return this.userService.getProfile(req.user.userId);
+  }
+
+  @Get('department/:managerId/users')
+  @ApiOperation({ summary: 'Get users in manager department' })
+  @ApiParam({
+    name: 'managerId',
+    type: String,
+    description: 'Manager ID',
+  })
+  getUsersByUserOfDepartment(
+    @Param('managerId') managerId: string,
+  ): Promise<UserInDepartmentDto[]> {
+    return this.userService.getUsersByUserOfDepartment(managerId);
   }
 
   @Get()

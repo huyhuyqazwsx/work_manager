@@ -4,6 +4,7 @@ import { InviteForm } from '@domain/type/invite.types';
 import { UserRole } from '@domain/enum/enum';
 import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interface';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
+import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
 
 export interface IUserService extends IBaseCrudService<UserAuth> {
   findUserById(id: string): Promise<UserAuth | null>;
@@ -24,4 +25,7 @@ export interface IUserService extends IBaseCrudService<UserAuth> {
   verifyEmail(email: string, token: string): Promise<void>;
   getProfile(userId: string): Promise<UserAuth | null>;
   getCountCode(): Promise<string>;
+
+  //Lấy nhân viên theo phòng ban
+  getUsersByUserOfDepartment(managerId: string): Promise<UserInDepartmentDto[]>;
 }

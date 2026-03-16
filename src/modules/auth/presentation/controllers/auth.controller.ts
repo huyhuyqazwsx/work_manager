@@ -2,30 +2,40 @@ import {
   Controller,
   Get,
   Inject,
-  Logger,
+  Post,
   Req,
   Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import express from 'express';
 import * as authServiceInterface from '../../application/interfaces/auth.service.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { ZohoUserProfilePayload } from '../../application/dto/zoho.dto';
 import { ApiTags } from '@nestjs/swagger';
-import express from 'express';
 import { ConfigService } from '@nestjs/config';
-type ZohoRequest = Request & {
+import { RefreshTokenGuard } from '@modules/jwt/guards/refresh-token.guard';
+import { CurrentUser } from '@modules/jwt/decorators/current-user.decorator';
+import { UserRole } from '@domain/enum/enum';
+import * as jwtServiceInterface from '@modules/jwt/application/interfaces/jwt.service.inteface';
+import * as requestTypes from '@domain/type/request.types';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
+
+interface ZohoRequest extends express.Request {
   user?: ZohoUserProfilePayload;
-};
+}
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger('AuthController');
+  // private readonly logger = new Logger('AuthController');
+
   constructor(
     @Inject('IAuthService')
     private readonly authService: authServiceInterface.IAuthService,
     private readonly configService: ConfigService,
+    @Inject('IJwtService')
+    private readonly jwtService: jwtServiceInterface.IJwtService,
   ) {}
 
   @Get('zoho')
@@ -38,16 +48,13 @@ export class AuthController {
     @Req() req: ZohoRequest,
     @Res() res: express.Response,
   ): Promise<void> {
-    const zohoUser = req.user as ZohoUserProfilePayload;
+    const zohoUser = req.user;
 
     if (!zohoUser?.email) {
       throw new UnauthorizedException();
     }
 
     const result = await this.authService.handleZohoLogin(zohoUser);
-
-    // this.logger.log(result.accessToken);
-    // this.logger.log(result.refreshToken);
 
     res.cookie('accessToken', result.accessToken, {
       httpOnly: false,
@@ -71,5 +78,43 @@ export class AuthController {
     }
 
     return res.redirect(redirectUrl.toString());
+  }
+
+  @Post('refresh')
+  @UseGuards(RefreshTokenGuard)
+  async refresh(
+    @CurrentUser()
+    user: { userId: string; role: UserRole; refreshToken: string },
+    @Res({ passthrough: true }) res: express.Response,
+  ): Promise<void> {
+    const result = await this.jwtService.refreshTokens(
+      user.userId,
+      user.role,
+      user.refreshToken,
+    );
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: false,
+      secure: true,
+      sameSite: 'none' as const,
+    });
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none' as const,
+    });
+  }
+
+  @Post('logout')
+  @UseGuards(AccessTokenGuard)
+  async logout(
+    @CurrentUser() user: requestTypes.RequestUser,
+    @Res({ passthrough: true }) res: express.Response,
+  ): Promise<void> {
+    await this.jwtService.logout(user.userId);
+
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
   }
 }

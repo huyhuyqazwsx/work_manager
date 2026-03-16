@@ -6,6 +6,7 @@ import { IJwtService } from '../interfaces/jwt.service.inteface';
 import * as cacheRepositoryInterface from '../../../../domain/cache/cache.repository.interface';
 import { JwtPayload, TokenPair } from '@domain/type/jwt.types';
 import { StringValue } from 'ms';
+import { UserRole } from '@domain/enum/enum';
 
 @Injectable()
 export class AppJwtService implements IJwtService {
@@ -20,7 +21,7 @@ export class AppJwtService implements IJwtService {
     this.refreshTTL = this.configService.get<number>('redis.ttl.refreshToken')!;
   }
 
-  async generateTokenPair(userId: string, role: string): Promise<TokenPair> {
+  async generateTokenPair(userId: string, role: UserRole): Promise<TokenPair> {
     const payload: JwtPayload = { sub: userId, role };
 
     const accessExpiresIn =
@@ -50,7 +51,7 @@ export class AppJwtService implements IJwtService {
 
   async refreshTokens(
     userId: string,
-    role: string,
+    role: UserRole,
     oldRefreshToken: string,
   ): Promise<TokenPair> {
     const isValid = await this.validateRefreshToken(userId, oldRefreshToken);

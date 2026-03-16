@@ -21,6 +21,7 @@ import { BaseCrudService } from '@infra/crudservice/base-crud.service';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 import * as departmentRepositoryInterface from '@modules/department/domain/repositories/department.repository.interface';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
+import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
 
 @Injectable()
 export class UserService
@@ -273,5 +274,16 @@ export class UserService
     const maxCode = await this.userRepository.findMaxCode();
     const maxNumber = maxCode ? parseInt(maxCode.replace('SG', ''), 10) : 0;
     return `SG${maxNumber + 1 + offset}`;
+  }
+
+  async getUsersByUserOfDepartment(
+    managerId: string,
+  ): Promise<UserInDepartmentDto[]> {
+    const manager = await this.departmentRepository.findByManagerId(managerId);
+
+    if (!manager) {
+      throw new NotFoundException('User not found');
+    }
+    return this.userRepository.getUsersByUserOfDepartment(managerId);
   }
 }

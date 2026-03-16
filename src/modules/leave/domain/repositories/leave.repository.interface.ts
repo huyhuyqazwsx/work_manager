@@ -38,4 +38,6 @@ export interface ILeaveRequestRepository extends IBaseRepository<LeaveRequest> {
     userId: string,
     targetYear: number,
   ): Promise<RangeExistDto>;
+
+  getLeaveRequestByBod(): Promise<LeaveRequest[]>;
 }

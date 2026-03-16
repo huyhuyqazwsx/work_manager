@@ -1,21 +1,29 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import 'reflect-metadata';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+
 async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync('./secrets/key.pem'),
     cert: fs.readFileSync('./secrets/cert.pem'),
   };
-  const app = await NestFactory.create(AppModule, {
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     httpsOptions,
   });
-  app.setGlobalPrefix('v1');
 
+  app.setGlobalPrefix('v1');
   app.use(cookieParser());
+
+  app.useStaticAssets(path.join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
 
   app.enableCors({
     origin: 'https://localhost:5173',
@@ -55,4 +63,5 @@ async function bootstrap() {
   console.log(`Application running on: https://localhost:3000`);
   console.log(`Swagger UI: https://localhost:3000/api`);
 }
+
 void bootstrap();

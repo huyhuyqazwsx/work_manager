@@ -198,19 +198,15 @@ export class PrismaOTTicketRepository
     }, 0);
   }
 
-  async findPendingLifecycleBatch(
-    limit: number,
-    offset: number,
-  ): Promise<OTTicket[]> {
+  async findPendingLifecycleBatch(limit: number): Promise<OTTicket[]> {
     const raws = await this.prismaModel.findMany({
       where: {
         status: {
           in: [OTTicketStatus.SCHEDULED, OTTicketStatus.IN_PROGRESS],
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { workDate: 'asc' },
       take: limit,
-      skip: offset,
     });
 
     return raws.map((r) => OTTicketMapper.toDomain(r));
@@ -225,6 +221,16 @@ export class PrismaOTTicketRepository
         }),
       ),
     );
+  }
+
+  async expireMany(ids: string[]): Promise<void> {
+    await this.prismaModel.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        status: OTTicketStatus.EXPIRED,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   //================PRIVATE==================

@@ -3,6 +3,7 @@ import { CompensationModule } from '../compensation/compensation.module';
 import { PrismaOTTicketRepository } from '@modules/ot-ticket/infrastructure/ot-ticket.repository';
 import { OTTicketService } from '@modules/ot-ticket/application/services/ot-ticket.service';
 import { OTTicketController } from '@modules/ot-ticket/presentation/controllers/ot-ticket.controller';
+import { OTTicketCronJob } from '@modules/ot-ticket/application/worker/ot-ticket.worker';
 
 @Module({
   imports: [CompensationModule],
@@ -16,6 +17,7 @@ import { OTTicketController } from '@modules/ot-ticket/presentation/controllers/
       provide: 'IOTTicketService',
       useClass: OTTicketService,
     },
+    OTTicketCronJob,
   ],
   exports: ['IOTTicketService'],
 })

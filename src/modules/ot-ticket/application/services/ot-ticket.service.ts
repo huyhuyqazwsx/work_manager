@@ -9,6 +9,7 @@ import { IOTTicketService } from '../interfaces/ot-ticket.service.interface';
 import * as otTicketRepositoryInterface from '../../domain/repositories/ot-ticket.repository.interface';
 import * as compensationServiceInterface from '../../../compensation/application/interfaces/compensation.service.interface';
 import { OTTicket } from '@domain/entities/ot-ticket.entity';
+import { OTType } from '@domain/enum/enum';
 
 @Injectable()
 export class OTTicketService
@@ -54,6 +55,7 @@ export class OTTicketService
     ticketId: string,
     userId: string,
     plan: string,
+    otType: OTType,
   ): Promise<OTTicket> {
     const ticket = await this.getTicketById(ticketId);
 
@@ -70,6 +72,7 @@ export class OTTicketService
     }
 
     ticket.checkInNow(plan);
+    ticket.otType = otType;
     await this.otTicketRepository.update(ticketId, ticket);
     return ticket;
   }
@@ -163,54 +166,51 @@ export class OTTicketService
   //TODO implement cron job handle
   async processOTTicketLifecycle(): Promise<void> {
     const BATCH_SIZE = 50;
-    let offset = 0;
+    const tickets =
+      await this.otTicketRepository.findPendingLifecycleBatch(BATCH_SIZE);
 
-    while (true) {
-      const tickets = await this.otTicketRepository.findPendingLifecycleBatch(
-        BATCH_SIZE,
-        offset,
-      );
+    if (!tickets.length) return;
 
-      if (!tickets.length) break;
+    const now = new Date();
+    const expiredAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const now = new Date();
-      const expiredAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const expiredIds: string[] = [];
+    const toAutoComplete: OTTicket[] = [];
 
-      const toUpdate: OTTicket[] = [];
+    for (const ticket of tickets) {
+      if (
+        ticket.isScheduled() &&
+        ticket.startTime &&
+        ticket.startTime < expiredAt
+      ) {
+        ticket.expire();
+        expiredIds.push(ticket.id);
+        continue;
+      }
 
-      for (const ticket of tickets) {
-        if (
-          ticket.isScheduled() &&
-          ticket.startTime &&
-          ticket.startTime < expiredAt
-        ) {
-          ticket.expire();
-          toUpdate.push(ticket);
-          continue;
-        }
-
-        if (ticket.isInProgress() && ticket.checkIn) {
-          const maxAllowed = new Date(
-            ticket.checkIn.getTime() + 24 * 60 * 60 * 1000,
+      if (ticket.isInProgress() && ticket.checkIn) {
+        const maxAllowed = new Date(
+          ticket.checkIn.getTime() + 24 * 60 * 60 * 1000,
+        );
+        if (now > maxAllowed) {
+          const autoCheckout = new Date(
+            ticket.checkIn.getTime() +
+              (ticket.totalHours ?? 0) * 60 * 60 * 1000,
           );
-
-          if (now > maxAllowed) {
-            const autoCheckout = new Date(
-              ticket.checkIn.getTime() +
-                (ticket.totalHours ?? 0) * 60 * 60 * 1000,
-            );
-            ticket.autoComplete(autoCheckout);
-            toUpdate.push(ticket);
-          }
+          ticket.autoComplete(autoCheckout);
+          toAutoComplete.push(ticket);
         }
       }
+    }
 
-      if (toUpdate.length) {
-        await this.otTicketRepository.updateManyTickets(toUpdate);
-      }
+    // 1 query
+    if (expiredIds.length) {
+      await this.otTicketRepository.expireMany(expiredIds);
+    }
 
-      if (tickets.length < BATCH_SIZE) break;
-      offset += BATCH_SIZE;
+    //N query
+    if (toAutoComplete.length) {
+      await this.otTicketRepository.updateManyTickets(toAutoComplete);
     }
   }
 }

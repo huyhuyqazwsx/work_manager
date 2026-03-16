@@ -39,6 +39,7 @@ import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import * as mailServiceInterface from '@modules/mail/application/interfaces/mail.service.interface';
 import { Prisma } from '@prisma/client';
+import * as fileUploadQueueRepositoryInterface from '@modules/leave/domain/repositories/file-upload-queue.repository.interface';
 
 @Injectable()
 export class LeaveService
@@ -67,6 +68,8 @@ export class LeaveService
     private readonly compensationService: compensationServiceInterface.ICompensationService,
     @Inject('IMailService')
     private readonly mailService: mailServiceInterface.IMailService,
+    @Inject('IFileUploadQueueRepository')
+    private readonly fileUploadQueueRepository: fileUploadQueueRepositoryInterface.IFileUploadQueueRepository,
   ) {
     super(leaveRepository);
   }
@@ -108,7 +111,7 @@ export class LeaveService
     const startDate = new Date(dto.fromDate);
     const endDate = new Date(dto.toDate);
 
-    const [user, leaveType, infoLeaveDays] = await Promise.all([
+    const [user, leaveType, infoLeaveDays, overlapping] = await Promise.all([
       this.userService.findUserById(dto.userId),
       this.leaveTypeService.findByCode(dto.leaveTypeCode),
       this.validateLeaveRequest(
@@ -117,16 +120,11 @@ export class LeaveService
         dto.fromSession,
         dto.toSession,
       ),
+      this.leaveRepository.findOverlapping(dto.userId, startDate, endDate),
     ]);
 
     if (!user) throw new NotFoundException('User not found');
     if (!leaveType) throw new NotFoundException('Leave type not found');
-
-    const overlapping = await this.leaveRepository.findOverlapping(
-      dto.userId,
-      startDate,
-      endDate,
-    );
 
     const conflicts = overlapping.filter((existing) =>
       this.isOverlapping(
@@ -149,11 +147,13 @@ export class LeaveService
 
     const actualLeaveDays = infoLeaveDays.actualLeaveDays;
 
-    const currentBalance = await this.resolveBalance(
-      leaveType,
-      user,
-      dto.paidPersonalEventCode,
-    );
+    const [currentBalance, result, leader] = await Promise.all([
+      this.resolveBalance(leaveType, user, dto.paidPersonalEventCode),
+      this.getNotifyInfo(user.id),
+      dto.emailLeader
+        ? this.userRepository.findByEmail(dto.emailLeader)
+        : Promise.resolve(null),
+    ]);
 
     const paidDays = Math.min(actualLeaveDays, currentBalance);
 
@@ -179,19 +179,24 @@ export class LeaveService
       [],
     );
 
-    await this.leaveRepository.runInTransaction(
-      async (tx: PrismaTransactionClient) => {
-        await this.leaveRepository.save(leaveRequest, tx);
-
-        await this.notifyApprover(
-          leaveRequest,
-          user,
-          dto.emailLeader,
-          EmailType.CREATE_LEAVE_REQUEST,
-          tx,
-        );
-      },
+    const { emailSend, emailCC, managerName } = this.buildNotifyInfo(
+      result,
+      leader,
     );
+
+    leaveRequest.emailSend = emailSend;
+    leaveRequest.emailCC = emailCC;
+
+    await this.leaveRepository.runInTransaction(async (tx) => {
+      await this.leaveRepository.save(leaveRequest, tx);
+      await this.notifyApprover(
+        leaveRequest,
+        user,
+        managerName,
+        EmailType.CREATE_LEAVE_REQUEST,
+        tx,
+      );
+    });
 
     if (file) {
       void this.uploadAttachmentAsync(leaveRequest.id, dto.userId, file);
@@ -454,6 +459,14 @@ export class LeaveService
 
     return this.leaveRepository.getRangeExistLeaveRequest(userId, targetYear);
   }
+
+  async getLeaveRequestByBod(bodId: string): Promise<LeaveRequest[]> {
+    const bod = await this.userRepository.findById(bodId);
+    if (!bod?.isBOD()) throw new NotFoundException('Bod does not exist');
+
+    return this.leaveRepository.getLeaveRequestByBod();
+  }
+
   // ================ Private =========================
   private isOverlapping(
     existing: LeaveRequest,
@@ -563,114 +576,95 @@ export class LeaveService
     file: Express.Multer.File,
   ): Promise<void> {
     try {
-      const attachmentUrl = await this.storageService.uploadImage(userId, file);
-      await this.leaveRepository.update(leaveRequestId, { attachmentUrl });
-      this.logger.log('update attachment', attachmentUrl);
-    } catch (err) {
-      this.logger.error(
-        `Failed to upload attachment for leave request ${leaveRequestId}`,
-        err as Error,
-      );
+      const cloudUrl = await this.storageService.uploadImage(userId, file);
+      await this.leaveRepository.update(leaveRequestId, {
+        attachmentUrl: cloudUrl,
+      });
+      this.logger.log(`Uploaded to cloud: ${cloudUrl}`);
+    } catch (cloudErr) {
+      this.logger.warn('Cloud upload failed, saving local...', cloudErr);
+      try {
+        const { url, absPath } = await this.storageService.saveLocal(
+          userId,
+          file,
+        );
+
+        await this.leaveRepository.update(leaveRequestId, {
+          attachmentUrl: url,
+        });
+        await this.fileUploadQueueRepository.save({
+          id: randomUUID(),
+          leaveRequestId,
+          localPath: absPath,
+          retryCount: 0,
+          createdAt: new Date(),
+        });
+
+        this.logger.log(`Saved local, queued for sync: ${absPath}`);
+      } catch (localErr) {
+        this.logger.error('Local save failed', localErr);
+      }
     }
   }
 
   private async notifyApprover(
     leaveRequest: LeaveRequest,
     user: UserAuth,
-    emailLeader?: string,
+    managerName: string | null,
     emailType?: EmailType,
     tx?: PrismaTransactionClient,
   ): Promise<void> {
-    const result = await this.getNotifyInfo(user.id);
+    if (!emailType || !leaveRequest.emailSend) return;
 
-    let emailSend: string | null = null;
-    let managerName: string | null = null;
-    const emailCC: string[] = [];
+    let payload: Prisma.JsonObject | null = null;
 
-    for (const notifyUser of result.info) {
-      const role = notifyUser.role as UserRole;
+    switch (emailType) {
+      case EmailType.CREATE_LEAVE_REQUEST:
+        payload = {
+          employeeName: user.fullName,
+          employeeCode: user.code,
+          departmentName: user.departmentName,
+          leaveTypeCode: leaveRequest.leaveTypeCode,
+          fromDate: leaveRequest.fromDate.toISOString(),
+          toDate: leaveRequest.toDate.toISOString(),
+          fromSession: leaveRequest.fromSession,
+          toSession: leaveRequest.toSession,
+          totalDays: leaveRequest.totalDays,
+          reason: leaveRequest.reason,
+          managerName: managerName ?? 'Không tên',
+          actionLink: 'test',
+        };
+        break;
 
-      if (role === UserRole.BOD || role === UserRole.DEPARTMENT_HEAD) {
-        if (!emailSend) {
-          emailSend = notifyUser.email;
-          managerName = notifyUser.name;
-        } else {
-          emailCC.push(notifyUser.email);
-        }
-      } else {
-        emailCC.push(notifyUser.email);
-      }
+      case EmailType.CANCELLED_LEAVE_REQUEST:
+        payload = {};
+        break;
+
+      case EmailType.APPROVED_LEAVE_REQUEST:
+        payload = {};
+        break;
+
+      case EmailType.REJECTED_LEAVE_REQUEST:
+        payload = {};
+        break;
+
+      default:
+        return;
     }
 
-    if (emailLeader) {
-      const leader = await this.userRepository.findByEmail(emailLeader);
+    // this.logger.debug(payload);
 
-      if (leader) {
-        emailCC.push(leader.email);
-      }
-    }
-
-    leaveRequest.emailSend = emailSend;
-    leaveRequest.emailCC = emailCC;
-    await this.leaveRepository.update(leaveRequest.id, leaveRequest, tx);
-
-    if (emailType && emailSend) {
-      let payload: Prisma.JsonObject | null = null;
-
-      switch (emailType) {
-        case EmailType.CREATE_LEAVE_REQUEST:
-          payload = {
-            employeeName: user.fullName,
-            employeeCode: user.code,
-            departmentName: user.departmentName,
-
-            leaveTypeCode: leaveRequest.leaveTypeCode,
-
-            fromDate: leaveRequest.fromDate.toISOString(),
-            toDate: leaveRequest.toDate.toISOString(),
-
-            fromSession: leaveRequest.fromSession,
-            toSession: leaveRequest.toSession,
-
-            totalDays: leaveRequest.totalDays,
-            reason: leaveRequest.reason,
-
-            managerName: managerName ?? 'Không tên',
-
-            actionLink: 'test',
-          };
-          break;
-
-        case EmailType.CANCELLED_LEAVE_REQUEST:
-          payload = {};
-          break;
-
-        case EmailType.APPROVED_LEAVE_REQUEST:
-          payload = {};
-          break;
-
-        case EmailType.REJECTED_LEAVE_REQUEST:
-          payload = {};
-          break;
-
-        default:
-          return;
-      }
-
-      this.logger.debug(payload);
-
-      await this.mailService.create(
-        {
-          id: randomUUID(),
-          type: emailType,
-          emailSend,
-          emailCC,
-          payload,
-          createdAt: new Date(),
-        },
-        tx,
-      );
-    }
+    await this.mailService.create(
+      {
+        id: randomUUID(),
+        type: emailType,
+        emailSend: leaveRequest.emailSend,
+        emailCC: leaveRequest.emailCC,
+        payload,
+        createdAt: new Date(),
+      },
+      tx,
+    );
   }
 
   private async validateLeaveRequest(
@@ -709,6 +703,8 @@ export class LeaveService
     if (!approver) throw new NotFoundException('Approver not found');
     if (!requestOwner) throw new NotFoundException('Request owner not found');
 
+    if (approver.isBOD()) return;
+
     const department = await this.departmentService.findById(
       requestOwner.departmentId,
     );
@@ -721,5 +717,36 @@ export class LeaveService
         'You are not allowed to perform this action',
       );
     }
+  }
+
+  private buildNotifyInfo(
+    notifyInfo: NotifyEmailResponse,
+    leader: UserAuth | null,
+  ): {
+    emailSend: string | null;
+    emailCC: string[];
+    managerName: string | null;
+  } {
+    let emailSend: string | null = null;
+    let managerName: string | null = null;
+    const emailCC: string[] = [];
+
+    for (const notifyUser of notifyInfo.info) {
+      const role = notifyUser.role as UserRole;
+      if (role === UserRole.BOD || role === UserRole.DEPARTMENT_HEAD) {
+        if (!emailSend) {
+          emailSend = notifyUser.email;
+          managerName = notifyUser.name;
+        } else {
+          emailCC.push(notifyUser.email);
+        }
+      } else {
+        emailCC.push(notifyUser.email);
+      }
+    }
+
+    if (leader) emailCC.push(leader.email);
+
+    return { emailSend, emailCC, managerName };
   }
 }

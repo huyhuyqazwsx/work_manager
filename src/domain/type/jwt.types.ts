@@ -1,6 +1,8 @@
+import { UserRole } from '@domain/enum/enum';
+
 export interface JwtPayload {
   sub: string;
-  role: string;
+  role: UserRole;
 }
 
 export interface TokenPair {

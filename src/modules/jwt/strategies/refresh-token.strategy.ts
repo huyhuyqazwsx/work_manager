@@ -1,9 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '@domain/type/jwt.types';
+import { UserRole } from '@domain/enum/enum';
+
+// Tạo interface cho cookies
+interface RequestWithCookies extends Request {
+  cookies: Record<string, string>;
+}
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(
@@ -12,7 +18,9 @@ export class RefreshTokenStrategy extends PassportStrategy(
 ) {
   constructor(configService: ConfigService) {
     const options: StrategyOptionsWithRequest = {
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (req: RequestWithCookies): string | null => {
+        return req?.cookies?.['refreshToken'] ?? null;
+      },
       secretOrKey:
         configService.get<string>('jwt.refresh.secret') ?? 'fallback',
       ignoreExpiration: false,
@@ -22,12 +30,22 @@ export class RefreshTokenStrategy extends PassportStrategy(
   }
 
   validate(
-    req: Request,
+    req: RequestWithCookies,
     payload: JwtPayload,
-  ): { userId: string; role: string; refreshToken: string } {
-    const authHeader = req.headers['authorization'];
-    const refreshToken = authHeader?.split(' ')[1];
-    if (!refreshToken) throw new UnauthorizedException();
-    return { userId: payload.sub, role: payload.role, refreshToken };
+  ): { userId: string; role: UserRole; refreshToken: string } {
+    if (!payload.sub || !payload.role) {
+      throw new UnauthorizedException();
+    }
+
+    const refreshToken = req.cookies['refreshToken'];
+    if (!refreshToken) {
+      throw new UnauthorizedException();
+    }
+
+    return {
+      userId: payload.sub,
+      role: payload.role,
+      refreshToken,
+    };
   }
 }
