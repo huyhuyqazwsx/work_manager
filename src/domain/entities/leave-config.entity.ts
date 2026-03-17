@@ -109,7 +109,8 @@ export class LeaveConfig {
 
     const months =
       (end.getFullYear() - start.getFullYear()) * 12 +
-      (end.getMonth() - start.getMonth());
+      (end.getMonth() - start.getMonth()) +
+      1;
 
     return Math.max(0, months);
   }

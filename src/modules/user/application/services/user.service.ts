@@ -60,12 +60,16 @@ export class UserService
   async findAllUsers(): Promise<UserResponseDto[]> {
     this.logger.log('Finding all users');
 
+    const key = 'users:all';
+    const cached = await this.cache.get<UserResponseDto[]>(key);
+    if (cached) return cached;
+
     const users = await this.userRepository.findAll();
     const departments = await this.departmentService.findAll();
 
     const departmentMap = new Map(departments.map((d) => [d.id, d.code]));
 
-    return users.map((user) => ({
+    const result = users.map((user) => ({
       id: user.id,
       code: user.code,
       email: user.email,
@@ -77,6 +81,9 @@ export class UserService
       joinDate: user.joinDate,
       contractSignedDate: user.contractSignedDate,
     }));
+
+    await this.cache.set(key, result, 60 * 60);
+    return result;
   }
 
   async createUser(user: UserAuth): Promise<void> {
@@ -107,6 +114,11 @@ export class UserService
     }
 
     await this.userRepository.update(id, user);
+    await this.cache.delete(`user:id:${id}`);
+    await this.cache.delete('users:all');
+    if (user.email) {
+      await this.cache.delete(`user:email:${user.email}`);
+    }
   }
 
   async deleteUser(id: string): Promise<void> {

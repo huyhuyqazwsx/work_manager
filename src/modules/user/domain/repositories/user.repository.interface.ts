@@ -20,4 +20,5 @@ export interface IUserRepository extends IBaseRepository<UserAuth> {
     departmentId: string,
   ): Promise<NotifyEmailResponse>;
   getUsersByUserOfDepartment(managerId: string): Promise<UserInDepartmentDto[]>;
+  findByDepartmentId(departmentId: string): Promise<UserAuth[]>;
 }

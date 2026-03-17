@@ -78,8 +78,11 @@ model LeaveRequest {
   attachmentUrl         String?
   emailSend             String?
   emailCC               String[]
+  departmentId          String          @db.Uuid
 
   @@index([createdBy, leaveTypeCode])
+  @@index([departmentId])
+  @@index([createdBy])
   @@index([status])
   @@index([fromDate, toDate])
   @@map("leave_requests")

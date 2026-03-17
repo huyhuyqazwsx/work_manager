@@ -22,6 +22,7 @@ export class LeaveRequestMapper {
       raw.attachmentUrl,
       raw.emailSend,
       raw.emailCC,
+      raw.departmentId,
       raw.createdAt,
       raw.approvedAt,
     );

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { User as PrismaUser } from '@prisma/client';
 import { UserMapper } from './user.mapper';
 import { UserAuth } from '@domain/entities/userAuth.entity';
@@ -13,6 +13,7 @@ import { AccountIdsInfo, AccountStatusBuckets } from '@domain/type/user.types';
 import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email_response.dto';
 import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
+import { AppError, AppException } from '@domain/errors';
 
 @Injectable()
 export class PrismaUserRepository
@@ -214,7 +215,11 @@ export class PrismaUserRepository
     });
 
     if (!manager) {
-      throw new NotFoundException('Manager not found');
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'Manager not found',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const users = await this.prisma.user.findMany({
@@ -237,5 +242,19 @@ export class PrismaUserRepository
       code: u.code,
       fullName: u.fullName,
     }));
+  }
+
+  async findByDepartmentId(departmentId: string): Promise<UserAuth[]> {
+    const raws = await this.prisma.user.findMany({
+      where: {
+        departmentId,
+        status: 'ACTIVE',
+      },
+      orderBy: {
+        fullName: 'asc',
+      },
+    });
+
+    return raws.map((r) => UserMapper.toDomain(r));
   }
 }

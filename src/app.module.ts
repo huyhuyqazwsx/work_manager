@@ -20,6 +20,7 @@ import { OTTicketModule } from '@modules/ot-ticket/ot-ticket.module';
 import { OTPlanModule } from '@modules/ot-plan/ot-plan.module';
 import { AppJwtModule } from '@modules/jwt/jwt.module';
 import { LoggerMiddleware } from '@src/common/middleware/logger.middleware';
+import { ReportModule } from '@modules/report/report.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { LoggerMiddleware } from '@src/common/middleware/logger.middleware';
     OTTicketModule,
     OTPlanModule,
     AppJwtModule,
+    ReportModule,
   ],
   providers: [AppService],
 })

@@ -187,6 +187,7 @@ export class LeaveService
       null,
       null,
       [],
+      user.departmentId,
     );
 
     const { emailSend, emailCC, managerName } = this.buildNotifyInfo(
@@ -627,7 +628,7 @@ export class LeaveService
 
     if (leaveType.isCompensatoryLeave()) {
       const balance = await this.compensationService.getBalanceByUserId(
-        user.id,
+        user.code!,
         targetYear,
       );
 

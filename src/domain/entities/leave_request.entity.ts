@@ -22,6 +22,7 @@ export class LeaveRequest {
     public attachmentUrl: string | null,
     public emailSend: string | null,
     public emailCC: string[],
+    public departmentId: string,
     createdAt?: Date,
     approvedAt?: Date | null,
   ) {
