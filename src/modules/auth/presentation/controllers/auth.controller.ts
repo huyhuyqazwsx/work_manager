@@ -80,26 +80,23 @@ export class AuthController {
   @UseGuards(RefreshTokenGuard)
   async refresh(
     @CurrentUser()
-    user: { userId: string; role: UserRole; refreshToken: string },
-    @Res({ passthrough: true }) res: express.Response,
-  ): Promise<void> {
+    user: {
+      userId: string;
+      role: UserRole;
+      refreshToken: string;
+    },
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const result = await this.jwtService.refreshTokens(
       user.userId,
       user.role,
       user.refreshToken,
     );
 
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'none' as const,
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none' as const,
-    });
+    // Bỏ res.cookie, trả về JSON để FE tự lưu
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    };
   }
 
   @Post('logout')
