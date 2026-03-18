@@ -1,7 +1,7 @@
 // refresh-token.strategy.ts
 import { Request } from 'express';
 import { PassportStrategy } from '@nestjs/passport';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '@domain/type/jwt.types';
@@ -17,14 +17,31 @@ export class RefreshTokenStrategy extends PassportStrategy(
   Strategy,
   'jwt-refresh',
 ) {
+  private readonly logger = new Logger(RefreshTokenStrategy.name);
+
   constructor(configService: ConfigService) {
     const options: StrategyOptionsWithRequest = {
       jwtFromRequest: (req: RequestWithCookies): string | null => {
-        if (req?.cookies?.['refreshToken']) {
-          return req.cookies['refreshToken'];
-        }
-        const header = req?.headers?.['x-refresh-token'] as string | undefined;
-        return header ?? null;
+        const fromCookie = req?.cookies?.['refreshToken'];
+        const fromHeader = req?.headers?.['x-refresh-token'] as
+          | string
+          | undefined;
+
+        this.logger.debug('=== RefreshToken Extract ===');
+        this.logger.debug(`URL: ${req.method} ${req.originalUrl}`);
+        this.logger.debug(`Origin: ${req.headers.origin}`);
+        this.logger.debug(`Cookie header raw: ${req.headers.cookie}`);
+        this.logger.debug(
+          `Parsed refreshToken cookie: ${fromCookie ?? 'NOT FOUND'}`,
+        );
+        this.logger.debug(
+          `x-refresh-token header: ${fromHeader ?? 'NOT FOUND'}`,
+        );
+        this.logger.debug(
+          `Token source: ${fromCookie ? 'COOKIE' : fromHeader ? 'HEADER' : 'NONE'}`,
+        );
+
+        return fromCookie ?? fromHeader ?? null;
       },
       secretOrKey:
         configService.get<string>('jwt.refresh.secret') ?? 'fallback',
@@ -38,7 +55,13 @@ export class RefreshTokenStrategy extends PassportStrategy(
     req: RequestWithCookies,
     payload: JwtPayload,
   ): { userId: string; role: UserRole; refreshToken: string } {
+    this.logger.debug('=== RefreshToken Validate ===');
+    this.logger.debug(`Payload: ${JSON.stringify(payload)}`);
+
     if (!payload.sub || !payload.role) {
+      this.logger.warn(
+        `FAIL - missing sub="${payload.sub}" role="${payload.role}"`,
+      );
       throw new AppException(
         AppError.AUTH_UNAUTHORIZED,
         'Unauthorized',
@@ -51,6 +74,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
       (req.headers['x-refresh-token'] as string | undefined);
 
     if (!refreshToken) {
+      this.logger.warn('FAIL - refreshToken not found in cookie or header');
       throw new AppException(
         AppError.AUTH_INVALID_TOKEN,
         'Refresh token not found',
@@ -58,10 +82,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
       );
     }
 
-    return {
-      userId: payload.sub,
-      role: payload.role,
-      refreshToken,
-    };
+    this.logger.debug(`OK - userId: ${payload.sub}, role: ${payload.role}`);
+    return { userId: payload.sub, role: payload.role, refreshToken };
   }
 }
