@@ -10,14 +10,22 @@ import cookieParser from 'cookie-parser';
 import { HttpExceptionFilter } from '@helper/filters';
 
 async function bootstrap() {
-  const httpsOptions = {
-    key: fs.readFileSync('./secrets/key.pem'),
-    cert: fs.readFileSync('./secrets/cert.pem'),
-  };
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    httpsOptions,
-  });
+  let app: NestExpressApplication;
+
+  if (isProduction) {
+    app = await NestFactory.create<NestExpressApplication>(AppModule);
+  } else {
+    const httpsOptions = {
+      key: fs.readFileSync('./secrets/key.pem'),
+      cert: fs.readFileSync('./secrets/cert.pem'),
+    };
+
+    app = await NestFactory.create<NestExpressApplication>(AppModule, {
+      httpsOptions,
+    });
+  }
 
   app.setGlobalPrefix('v1');
   app.use(cookieParser());
@@ -27,10 +35,10 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: 'https://localhost:5173',
+    origin: isProduction
+      ? true // hoặc set domain FE thật
+      : 'https://localhost:5173',
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useGlobalFilters(new HttpExceptionFilter());
@@ -40,7 +48,6 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
-      disableErrorMessages: false,
     }),
   );
 
@@ -59,12 +66,17 @@ async function bootstrap() {
     )
     .build();
 
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
-  console.log(`Application running on: https://localhost:3000`);
-  console.log(`Swagger UI: https://localhost:3000/api`);
+  const port = process.env.PORT || 3000;
+
+  await app.listen(port, '0.0.0.0');
+
+  const protocol = isProduction ? 'https' : 'https';
+
+  console.log(`App running on ${protocol}://localhost:${port}`);
+  console.log(`Swagger: ${protocol}://localhost:${port}/api`);
 }
 
 void bootstrap();
