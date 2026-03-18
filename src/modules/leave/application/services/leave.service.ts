@@ -473,6 +473,7 @@ export class LeaveService
         'User not found',
         HttpStatus.NOT_FOUND,
       );
+
     if (!annualLeaveType)
       throw new AppException(
         AppError.LEAVE_TYPE_NOT_FOUND,
@@ -480,10 +481,11 @@ export class LeaveService
         HttpStatus.NOT_FOUND,
       );
 
-    // ===== Total allowed =====
-    const leaveConfig = await this.policyService
-      .getLeaveConfig(user.contractType)
-      .catch(() => null);
+    const [leaveConfig, compensation, summary] = await Promise.all([
+      this.policyService.getLeaveConfig(user.contractType).catch(() => null),
+      this.compensationService.getBalanceByUserId(user.code!, targetYear),
+      this.leaveRepository.getAnnualLeaveSummary(userId, targetYear),
+    ]);
 
     if (!leaveConfig?.isActive) {
       return {
@@ -496,11 +498,8 @@ export class LeaveService
       };
     }
 
+    // ===== business logic =====
     const totalBase = leaveConfig.getTotalBase(user.joinDate, targetYear);
-    const compensation = await this.compensationService.getBalanceByUserId(
-      user.code!,
-      targetYear,
-    );
 
     const compensationHours = compensation.hours;
 
@@ -508,12 +507,6 @@ export class LeaveService
       signDate: user.joinDate,
       targetYear,
     });
-
-    // ===== Aggregate used & pending =====
-    const summary = await this.leaveRepository.getAnnualLeaveSummary(
-      userId,
-      targetYear,
-    );
 
     const usedPaidDays = summary?.usedPaidDays ?? 0;
     const usedUnpaidDays = summary?.usedUnpaidDays ?? 0;

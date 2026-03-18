@@ -68,10 +68,28 @@ export class OTTicketService
       );
     }
 
+    const start = new Date(ticket.startTime);
+
+    const startOfDay = new Date(start);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(start);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const now = new Date();
+
     if (!ticket.isScheduled()) {
       throw new AppException(
         AppError.OT_TICKET_INVALID_STATUS,
         `Cannot check in ticket with status "${ticket.status}"`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (now < startOfDay || now > endOfDay) {
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'Expired check in',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -166,10 +184,13 @@ export class OTTicketService
       );
     }
 
-    if (!ticket.isScheduled()) {
+    const now = new Date().getTime();
+    const isBeforeStart = now <= ticket.startTime.getTime();
+
+    if (!ticket.isScheduled() || !isBeforeStart) {
       throw new AppException(
         AppError.OT_TICKET_INVALID_STATUS,
-        `Cannot cancel ticket with status "${ticket.status}"`,
+        `Cannot cancel ticket with status "${ticket.status}" or past start time`,
         HttpStatus.BAD_REQUEST,
       );
     }

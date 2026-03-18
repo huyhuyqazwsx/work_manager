@@ -12,7 +12,7 @@ export class OTTicketCronJob {
     private readonly otTicketService: otTicketServiceInterface.IOTTicketService,
   ) {}
 
-  @Cron('0 * * * *') // 1 tiếng 1 lần
+  @Cron('*/10 * * * * *') // 1 tiếng 1 lần
   async processOTTicketLifecycle(): Promise<void> {
     if (this.isRunning) {
       this.logger.warn('OTTicket lifecycle job is still running, skipping...');

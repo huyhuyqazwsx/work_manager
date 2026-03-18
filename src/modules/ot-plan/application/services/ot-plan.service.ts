@@ -60,8 +60,24 @@ export class OTPlanService
     return plan;
   }
 
-  async getMyPlans(managerId: string): Promise<OTPlan[]> {
-    return this.otPlanRepository.findByManagerId(managerId);
+  async getMyPlans(
+    managerId: string,
+    page = 1,
+    limit = 10,
+    status?: string,
+    fromDate?: string,
+    toDate?: string,
+    search?: string,
+  ) {
+    return this.otPlanRepository.findByManagerId(
+      managerId,
+      page,
+      limit,
+      status,
+      fromDate,
+      toDate,
+      search,
+    );
   }
 
   async getPendingPlans(): Promise<OTPlan[]> {

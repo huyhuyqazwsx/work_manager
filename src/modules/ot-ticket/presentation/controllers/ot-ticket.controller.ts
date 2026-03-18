@@ -6,8 +6,9 @@ import {
   Patch,
   Inject,
   UseGuards,
+  Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import * as otTicketServiceInterface from '@modules/ot-ticket/application/interfaces/ot-ticket.service.interface';
 import { RolesGuard } from '@modules/jwt/guards/roles.guard';
 import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
@@ -39,6 +40,45 @@ export class OTTicketController {
   @ApiOperation({ summary: 'Get my tickets' })
   getMyTickets(@CurrentUser() user: requestTypes_1.RequestUser) {
     return this.otTicketService.getMyTickets(user.userId);
+  }
+
+  @Get('my-hours/day')
+  @ApiOperation({ summary: 'Get my OT hours by day' })
+  @ApiQuery({ name: 'date', type: String, example: '2026-03-18' })
+  getMyHoursByDay(
+    @CurrentUser() user: requestTypes.RequestUser,
+    @Query('date') date: string,
+  ) {
+    return this.otTicketService.sumHoursByUserAndDay(
+      user.userId,
+      new Date(date),
+    );
+  }
+
+  @Get('my-hours/month')
+  @ApiOperation({ summary: 'Get my OT hours by month' })
+  @ApiQuery({ name: 'date', type: String, example: '2026-03-01' })
+  getMyHoursByMonth(
+    @CurrentUser() user: requestTypes.RequestUser,
+    @Query('date') date: string,
+  ) {
+    return this.otTicketService.sumHoursByUserAndMonth(
+      user.userId,
+      new Date(date),
+    );
+  }
+
+  @Get('my-hours/year')
+  @ApiOperation({ summary: 'Get my OT hours by year' })
+  @ApiQuery({ name: 'date', type: String, example: '2026-01-01' })
+  getMyHoursByYear(
+    @CurrentUser() user: requestTypes.RequestUser,
+    @Query('date') date: string,
+  ) {
+    return this.otTicketService.sumHoursByUserAndYear(
+      user.userId,
+      new Date(date),
+    );
   }
 
   @Patch(':id/check-in')
@@ -92,7 +132,6 @@ export class OTTicketController {
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel scheduled ticket' })
   @ApiParam({ name: 'id', type: String })
-  @Roles(UserRole.DEPARTMENT_HEAD, UserRole.HR, UserRole.BOD)
   cancel(
     @Param('id') id: string,
     @CurrentUser() user: requestTypes.RequestUser,
@@ -103,7 +142,6 @@ export class OTTicketController {
   @Get(':id')
   @ApiOperation({ summary: 'Get ticket by ID' })
   @ApiParam({ name: 'id', type: String })
-  // Mọi role đều xem được, guard tự kiểm tra ownership ở service layer
   getTicketById(@Param('id') id: string) {
     return this.otTicketService.getTicketById(id);
   }

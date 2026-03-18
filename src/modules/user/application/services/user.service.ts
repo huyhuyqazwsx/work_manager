@@ -48,24 +48,24 @@ export class UserService
   }
 
   async findUserById(id: string): Promise<UserAuth | null> {
-    const key = `user:id:${id}`;
-    let cached = await this.cache.get<UserAuth>(key);
-    if (cached) return UserAuth.fromPlain(cached);
+    // const key = `user:id:${id}`;
+    // let cached = await this.cache.get<UserAuth>(key);
+    // if (cached) return UserAuth.fromPlain(cached);
 
-    cached = await this.userRepository.findById(id);
+    const cached = await this.userRepository.findById(id);
 
-    if (cached) await this.cache.set(key, cached, 60 * 60);
+    // if (cached) await this.cache.set(key, cached, 60 * 60);
     return cached;
   }
 
   async findUserByEmail(email: string): Promise<UserAuth | null> {
-    this.logger.log(`Finding user by email: ${email}`);
-    const key = `user:email:${email}`;
-    let cached = await this.cache.get<UserAuth>(key);
-    if (cached) return UserAuth.fromPlain(cached);
+    // this.logger.log(`Finding user by email: ${email}`);
+    // const key = `user:email:${email}`;
+    // let cached = await this.cache.get<UserAuth>(key);
+    // if (cached) return UserAuth.fromPlain(cached);
 
-    cached = await this.userRepository.findByEmail(email);
-    if (cached) await this.cache.set(key, cached, 60 * 60);
+    const cached = await this.userRepository.findByEmail(email);
+    // if (cached) await this.cache.set(key, cached, 60 * 60);
     return cached;
   }
 

@@ -8,6 +8,7 @@ import {
   Put,
   Patch,
   Inject,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as otPlanServiceInterface from '@modules/ot-plan/application/interfaces/ot-plan.service.interface';
@@ -31,10 +32,24 @@ export class OTPlanController {
   }
 
   @Get('manager/:managerId')
-  @ApiOperation({ summary: 'Get my plans' })
-  @ApiParam({ name: 'managerId', type: String })
-  getMyPlans(@Param('managerId') managerId: string) {
-    return this.otPlanService.getMyPlans(managerId);
+  getMyPlans(
+    @Param('managerId') managerId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('status') status?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.otPlanService.getMyPlans(
+      managerId,
+      Number(page),
+      Number(limit),
+      status,
+      fromDate,
+      toDate,
+      search,
+    );
   }
 
   @Get('pending/all')

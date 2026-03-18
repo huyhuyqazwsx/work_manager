@@ -143,67 +143,61 @@ export class MailService
     const jobs = await this.repository.getEmailQueue(batchSize);
     if (!jobs.length) return;
 
-    await this.runInTransaction(async (tx) => {
-      const successIds: string[] = [];
+    const successIds: string[] = [];
 
-      await Promise.all(
-        jobs.map(async (job) => {
-          try {
-            switch (job.type as EmailType) {
-              case EmailType.INVITE: {
-                const payload = job.payload as unknown as InviteEmailPayload;
-                const ttl = this.configService.get<number>(
-                  'redis.ttl.verification',
-                )!;
+    for (const job of jobs) {
+      try {
+        switch (job.type as EmailType) {
+          case EmailType.INVITE: {
+            const payload = job.payload as unknown as InviteEmailPayload;
+            const ttl = this.configService.get<number>(
+              'redis.ttl.verification',
+            )!;
 
-                await this.cache.set(
-                  `verification:${job.emailSend}`,
-                  payload.verificationToken,
-                  ttl,
-                );
+            await this.cache.set(
+              `verification:${job.emailSend}`,
+              payload.verificationToken,
+              ttl,
+            );
 
-                // await this.sendVerificationEmail(
-                //   job.email,
-                //   payload.verificationToken,
-                // );
+            // await this.sendVerificationEmail(
+            //   job.email,
+            //   payload.verificationToken,
+            // );
 
-                this.logger.log(
-                  `Verification email processed: ${job.emailSend}`,
-                );
-                break;
-              }
-
-              case EmailType.CREATE_LEAVE_REQUEST: {
-                const payload =
-                  job.payload as unknown as LeaveRequestEmailPayload;
-
-                // await this.sendLeaveRequest(
-                //   job.emailSend ?? [],
-                //   payload,
-                //   job.emailCC,
-                // );
-
-                this.logger.log(job);
-                break;
-              }
-
-              default:
-                this.logger.warn(`Unknown email type: ${job.type}`);
-            }
-
-            successIds.push(job.id);
-          } catch (err) {
-            this.logger.error(`Email job failed: ${job.id}`, err as Error);
+            this.logger.log(`Verification email processed: ${job.emailSend}`);
+            break;
           }
-        }),
-      );
 
-      if (successIds.length) {
+          case EmailType.CREATE_LEAVE_REQUEST: {
+            const payload = job.payload as unknown as LeaveRequestEmailPayload;
+
+            // await this.sendLeaveRequest(
+            //   job.emailSend ?? [],
+            //   payload,
+            //   job.emailCC,
+            // );
+            this.logger.log(job);
+            break;
+          }
+
+          default:
+            this.logger.warn(`Unknown email type: ${job.type}`);
+        }
+
+        successIds.push(job.id);
+      } catch (err) {
+        this.logger.error(`Email job failed: ${job.id}`, err as Error);
+      }
+    }
+
+    if (successIds.length) {
+      await this.runInTransaction(async (tx) => {
         await this.repository.deleteMany(
           { id: { in: successIds } } as unknown as Partial<EmailQueue>,
           tx,
         );
-      }
-    });
+      });
+    }
   }
 }

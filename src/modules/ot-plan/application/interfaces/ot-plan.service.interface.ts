@@ -6,7 +6,23 @@ import { PreviewOTPlanResponseDto } from '@modules/ot-plan/application/dto/previ
 
 export interface IOTPlanService extends IBaseCrudService<OTPlan> {
   getPlanById(planId: string): Promise<OTPlan>;
-  getMyPlans(managerId: string): Promise<OTPlan[]>;
+  getMyPlans(
+    managerId: string,
+    page: number,
+    limit: number,
+    status?: string,
+    fromDate?: string,
+    toDate?: string,
+    search?: string,
+  ): Promise<{
+    data: OTPlan[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>;
   getPendingPlans(): Promise<OTPlan[]>;
   createPlan(dto: CreateOTPlanDto): Promise<OTPlan>;
   updatePlan(planId: string, dto: UpdateOTPlanDto): Promise<OTPlan>;
