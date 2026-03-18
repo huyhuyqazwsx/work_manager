@@ -39,6 +39,8 @@ async function bootstrap() {
       ? 'https://work-manager-fe.vercel.app'
       : 'https://localhost:5173',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-refresh-token'],
   });
 
   app.useGlobalFilters(new HttpExceptionFilter());
