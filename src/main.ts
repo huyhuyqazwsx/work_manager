@@ -36,7 +36,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: isProduction
-      ? true // hoặc set domain FE thật
+      ? 'https://work-manager-fe-huyhuyqazwsxs-projects.vercel.app'
       : 'https://localhost:5173',
     credentials: true,
   });

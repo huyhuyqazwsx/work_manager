@@ -56,18 +56,6 @@ export class AuthController {
 
     const result = await this.authService.handleZohoLogin(zohoUser);
 
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'none' as const,
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none' as const,
-    });
-
     const frontendUrl = this.configService.get<string>('app.frontendUrl');
     const redirectUrl = new URL(`${frontendUrl}/auth/handle-status`);
 
@@ -75,6 +63,14 @@ export class AuthController {
 
     if (result.email) {
       redirectUrl.searchParams.set('email', result.email);
+    }
+
+    // ← thêm token vào URL
+    if (result.accessToken) {
+      redirectUrl.searchParams.set('accessToken', result.accessToken);
+    }
+    if (result.refreshToken) {
+      redirectUrl.searchParams.set('refreshToken', result.refreshToken);
     }
 
     return res.redirect(redirectUrl.toString());
