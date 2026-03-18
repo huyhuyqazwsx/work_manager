@@ -36,7 +36,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: isProduction
-      ? 'https://work-manager-fe-huyhuyqazwsxs-projects.vercel.app'
+      ? 'https://work-manager-fe.vercel.app'
       : 'https://localhost:5173',
     credentials: true,
   });
