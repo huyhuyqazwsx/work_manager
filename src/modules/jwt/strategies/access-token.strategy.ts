@@ -1,3 +1,4 @@
+// access-token.strategy.ts
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -17,7 +18,6 @@ export class AccessTokenStrategy extends PassportStrategy(
         if (req?.cookies?.accessToken) {
           return req.cookies.accessToken as string;
         }
-
         const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
         return token ?? null;
       },

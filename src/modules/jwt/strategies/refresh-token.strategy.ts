@@ -1,3 +1,4 @@
+// refresh-token.strategy.ts
 import { Request } from 'express';
 import { PassportStrategy } from '@nestjs/passport';
 import { HttpStatus, Injectable } from '@nestjs/common';
@@ -7,7 +8,6 @@ import { JwtPayload } from '@domain/type/jwt.types';
 import { UserRole } from '@domain/enum/enum';
 import { AppError, AppException } from '@domain/errors';
 
-// Tạo interface cho cookies
 interface RequestWithCookies extends Request {
   cookies: Record<string, string>;
 }
@@ -20,7 +20,11 @@ export class RefreshTokenStrategy extends PassportStrategy(
   constructor(configService: ConfigService) {
     const options: StrategyOptionsWithRequest = {
       jwtFromRequest: (req: RequestWithCookies): string | null => {
-        return req?.cookies?.['refreshToken'] ?? null;
+        if (req?.cookies?.['refreshToken']) {
+          return req.cookies['refreshToken'];
+        }
+        const header = req?.headers?.['x-refresh-token'] as string | undefined;
+        return header ?? null;
       },
       secretOrKey:
         configService.get<string>('jwt.refresh.secret') ?? 'fallback',
@@ -42,7 +46,10 @@ export class RefreshTokenStrategy extends PassportStrategy(
       );
     }
 
-    const refreshToken = req.cookies['refreshToken'];
+    const refreshToken =
+      req.cookies['refreshToken'] ??
+      (req.headers['x-refresh-token'] as string | undefined);
+
     if (!refreshToken) {
       throw new AppException(
         AppError.AUTH_INVALID_TOKEN,
