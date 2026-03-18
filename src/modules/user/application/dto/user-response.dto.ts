@@ -11,6 +11,6 @@ export class UserResponseDto {
   departmentCode: string;
   contractType: ContractType;
 
-  joinDate: Date;
+  joinDate: Date | null;
   contractSignedDate: Date | null;
 }

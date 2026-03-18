@@ -23,7 +23,7 @@ model User {
   departmentName     String?
   position           String
   contractType       String    // Intern | Trainee | Probation | Official Employee
-  joinDate           DateTime
+  joinDate           DateTime?
   contractSignedDate DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

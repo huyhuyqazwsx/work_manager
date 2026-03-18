@@ -35,7 +35,7 @@ export class PolicyService implements IPolicyService {
   async getLeaveConfig(contractType: ContractType): Promise<LeaveConfig> {
     const key = CACHE_KEYS.leaveConfig(contractType);
     const cached = await this.cache.get<LeaveConfig>(key);
-    if (cached) return cached;
+    if (cached) return LeaveConfig.fromPlain(cached);
 
     const config =
       await this.policyRepository.findLeaveConfigByContractType(contractType);
@@ -54,7 +54,7 @@ export class PolicyService implements IPolicyService {
   async getLeaveConfigById(id: string): Promise<LeaveConfig> {
     const key = CACHE_KEYS.leaveConfigById(id);
     const cached = await this.cache.get<LeaveConfig>(key);
-    if (cached) return cached;
+    if (cached) return LeaveConfig.fromPlain(cached);
 
     const config = await this.policyRepository.findLeaveConfigById(id);
     if (!config) {
@@ -72,7 +72,7 @@ export class PolicyService implements IPolicyService {
   async getAllLeaveConfigs(): Promise<LeaveConfig[]> {
     const key = CACHE_KEYS.allLeaveConfigs();
     const cached = await this.cache.get<LeaveConfig[]>(key);
-    if (cached) return cached;
+    if (cached) return cached.map((c) => LeaveConfig.fromPlain(c));
 
     const configs = await this.policyRepository.findAllLeaveConfigs();
     await this.cache.set(key, configs, CACHE_TTL);
@@ -104,7 +104,7 @@ export class PolicyService implements IPolicyService {
   async getActiveOTConfig(): Promise<OTConfig> {
     const key = CACHE_KEYS.activeOTConfig();
     const cached = await this.cache.get<OTConfig>(key);
-    if (cached) return cached;
+    if (cached) return OTConfig.fromPlain(cached);
 
     const config = await this.policyRepository.findActiveOTConfig();
     if (!config) {
@@ -122,7 +122,7 @@ export class PolicyService implements IPolicyService {
   async getOTConfigById(id: string): Promise<OTConfig> {
     const key = CACHE_KEYS.otConfig(id);
     const cached = await this.cache.get<OTConfig>(key);
-    if (cached) return cached;
+    if (cached) return OTConfig.fromPlain(cached);
 
     const config = await this.policyRepository.findOTConfigById(id);
     if (!config) {
@@ -140,7 +140,7 @@ export class PolicyService implements IPolicyService {
   async getAllOTConfigs(): Promise<OTConfig[]> {
     const key = CACHE_KEYS.allOTConfigs();
     const cached = await this.cache.get<OTConfig[]>(key);
-    if (cached) return cached;
+    if (cached) return cached.map((c) => OTConfig.fromPlain(c));
 
     const configs = await this.policyRepository.findAllOTConfigs();
     await this.cache.set(key, configs, CACHE_TTL);
@@ -171,7 +171,7 @@ export class PolicyService implements IPolicyService {
   ): Promise<PaidPersonalLeaveEvent> {
     const key = CACHE_KEYS.paidPersonalEvent(code);
     const cached = await this.cache.get<PaidPersonalLeaveEvent>(key);
-    if (cached) return cached;
+    if (cached) return PaidPersonalLeaveEvent.fromPlain(cached);
 
     const event = await this.policyRepository.findPaidPersonalEventByCode(code);
     if (!event) {
@@ -189,7 +189,7 @@ export class PolicyService implements IPolicyService {
   async findAllPaidPersonalEvents(): Promise<PaidPersonalLeaveEvent[]> {
     const key = CACHE_KEYS.allPaidPersonalEvents();
     const cached = await this.cache.get<PaidPersonalLeaveEvent[]>(key);
-    if (cached) return cached;
+    if (cached) return cached.map((c) => PaidPersonalLeaveEvent.fromPlain(c));
 
     const events = await this.policyRepository.findAllPaidPersonalEvents();
     await this.cache.set(key, events, CACHE_TTL);

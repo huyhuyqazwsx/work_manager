@@ -173,12 +173,12 @@ export class InviteService implements IInviteService {
       const department = row.getCell(3).text.trim();
       const position = row.getCell(4).text?.trim();
       const contractType = row.getCell(5).text.trim();
-      const joinDate = row.getCell(6).value as Date;
+      const joinDate = row.getCell(6).value as Date | undefined;
       const contractSignedDate = row.getCell(7).value as Date | undefined;
       const role = row.getCell(8).text.trim();
 
       // Skip empty rows
-      if (!email && !department && !contractType && !joinDate && !role) {
+      if (!email && !department && !contractType && !role) {
         continue;
       }
 

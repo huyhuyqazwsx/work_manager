@@ -30,7 +30,7 @@ export class InviteFormDto {
 
   @Type(() => Date)
   @IsDate({ message: 'joinDate must be a valid date' })
-  joinDate: Date;
+  joinDate?: Date;
 
   @IsOptional()
   @Type(() => Date)

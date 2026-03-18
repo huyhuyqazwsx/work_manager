@@ -180,7 +180,6 @@ export class OTTicketService
     return ticket;
   }
 
-  //TODO implement cron job handle
   async processOTTicketLifecycle(): Promise<void> {
     const BATCH_SIZE = 50;
     const tickets =

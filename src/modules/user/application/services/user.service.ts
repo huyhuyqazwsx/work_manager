@@ -48,13 +48,25 @@ export class UserService
   }
 
   async findUserById(id: string): Promise<UserAuth | null> {
-    this.logger.log(`Finding user by ID: ${id}`);
-    return await this.userRepository.findById(id);
+    const key = `user:id:${id}`;
+    let cached = await this.cache.get<UserAuth>(key);
+    if (cached) return UserAuth.fromPlain(cached);
+
+    cached = await this.userRepository.findById(id);
+
+    if (cached) await this.cache.set(key, cached, 60 * 60);
+    return cached;
   }
 
   async findUserByEmail(email: string): Promise<UserAuth | null> {
     this.logger.log(`Finding user by email: ${email}`);
-    return await this.userRepository.findByEmail(email);
+    const key = `user:email:${email}`;
+    let cached = await this.cache.get<UserAuth>(key);
+    if (cached) return UserAuth.fromPlain(cached);
+
+    cached = await this.userRepository.findByEmail(email);
+    if (cached) await this.cache.set(key, cached, 60 * 60);
+    return cached;
   }
 
   async findAllUsers(): Promise<UserResponseDto[]> {
@@ -125,6 +137,8 @@ export class UserService
     await this.findUserById(id);
 
     await this.userRepository.delete(id);
+    await this.cache.delete(`user:id:${id}`);
+    await this.cache.delete('users:all');
   }
 
   //Gửi xác thực cho email
@@ -224,7 +238,7 @@ export class UserService
             invite.department,
             invite.position ?? '',
             invite.contractType,
-            invite.joinDate,
+            invite.joinDate ?? null,
             invite.contractSignedDate ?? null,
           ),
         );

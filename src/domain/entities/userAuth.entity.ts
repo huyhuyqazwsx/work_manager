@@ -18,7 +18,7 @@ export class UserAuth {
     public position: string,
     public contractType: ContractType,
 
-    public joinDate: Date,
+    public joinDate: Date | null,
     public contractSignedDate: Date | null,
 
     createdAt?: Date,
@@ -28,8 +28,43 @@ export class UserAuth {
     this.updatedAt = updatedAt ?? new Date();
     this.status = status ?? UserStatus.PENDING;
     this.role = role ?? UserRole.EMPLOYEE;
-    this.joinDate = joinDate ?? new Date();
     this.contractSignedDate = contractSignedDate ?? null;
+  }
+
+  static fromPlain(plain: {
+    id: string;
+    code: string | null;
+    email: string;
+    fullName: string;
+    gender: string;
+    status: UserStatus;
+    role: UserRole;
+    departmentId: string;
+    departmentName: string | null;
+    position: string;
+    contractType: ContractType;
+    joinDate: Date | string | null;
+    contractSignedDate: Date | string | null;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  }): UserAuth {
+    return new UserAuth(
+      plain.id,
+      plain.code,
+      plain.email,
+      plain.fullName,
+      plain.gender,
+      plain.status,
+      plain.role,
+      plain.departmentId,
+      plain.departmentName,
+      plain.position,
+      plain.contractType,
+      plain.joinDate ? new Date(plain.joinDate) : null,
+      plain.contractSignedDate ? new Date(plain.contractSignedDate) : null,
+      plain.createdAt ? new Date(plain.createdAt) : undefined,
+      plain.updatedAt ? new Date(plain.updatedAt) : undefined,
+    );
   }
 
   updateFullName(fullName: string): void {
@@ -75,10 +110,8 @@ export class UserAuth {
   }
 
   updateJoinDate(joinDate: Date): void {
-    if (this.joinDate.getTime() !== joinDate.getTime()) {
-      this.joinDate = joinDate;
-      this.touch();
-    }
+    this.joinDate = joinDate;
+    this.touch();
   }
 
   updateContractSignedDate(date: Date | null): void {
@@ -156,8 +189,9 @@ export class UserAuth {
   }
 
   getYearsOfService(): number {
+    if (this.contractType !== ContractType.OFFICIAL_EMPLOYEE) return 0;
     const now = new Date();
-    const diffTime = now.getTime() - this.joinDate.getTime();
+    const diffTime = now.getTime() - this.joinDate!.getTime();
     return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 365));
   }
 

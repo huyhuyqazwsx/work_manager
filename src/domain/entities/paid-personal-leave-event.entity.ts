@@ -8,4 +8,20 @@ export class PaidPersonalLeaveEvent {
     public readonly allowedDays: number,
     public readonly resetOnUse: boolean,
   ) {}
+
+  static fromPlain(plain: {
+    id: string;
+    code: PaidPersonalEventCode;
+    name: string;
+    allowedDays: number;
+    resetOnUse: boolean;
+  }): PaidPersonalLeaveEvent {
+    return new PaidPersonalLeaveEvent(
+      plain.id,
+      plain.code,
+      plain.name,
+      plain.allowedDays,
+      plain.resetOnUse,
+    );
+  }
 }

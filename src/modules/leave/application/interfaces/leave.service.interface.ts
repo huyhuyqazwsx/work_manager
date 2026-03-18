@@ -63,4 +63,8 @@ export interface ILeaveService extends IBaseCrudService<LeaveRequest> {
 
   //Lấy leave request cho BOD
   getLeaveRequestByBod(bodId: string): Promise<LeaveRequest[]>;
+
+  //Xử lý các đơn leave chưa được duyệt
+  autoRejectLeave(leaveId: string, reason: string): Promise<void>;
+  findPendingForAutoReject(limit: number): Promise<LeaveRequest[]>;
 }

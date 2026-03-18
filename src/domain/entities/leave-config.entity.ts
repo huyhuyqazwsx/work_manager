@@ -14,7 +14,39 @@ export class LeaveConfig {
     public allowNegativeBalance: boolean,
     public isActive: boolean,
   ) {}
-  getTotalBase(signDate: Date, targetYear: number) {
+
+  static fromPlain(plain: {
+    id: string;
+    contractType: ContractType;
+    baseDaysPerYear: number;
+    bonusDaysPerCycle: number;
+    bonusYearCycle: number;
+    maxDaysPerRequest: number;
+    minimumNoticeDays: number;
+    prorateByMonth: boolean;
+    joinDateCutoffDay: number;
+    allowNegativeBalance: boolean;
+    isActive: boolean;
+  }): LeaveConfig {
+    return new LeaveConfig(
+      plain.id,
+      plain.contractType,
+      plain.baseDaysPerYear,
+      plain.bonusDaysPerCycle,
+      plain.bonusYearCycle,
+      plain.maxDaysPerRequest,
+      plain.minimumNoticeDays,
+      plain.prorateByMonth,
+      plain.joinDateCutoffDay,
+      plain.allowNegativeBalance,
+      plain.isActive,
+    );
+  }
+
+  getTotalBase(signDate: Date | null, targetYear: number) {
+    if (signDate == null) {
+      return 0;
+    }
     const now = new Date();
     const yearsOfService = this.calculateYearsOfServiceAtYear(
       signDate,
@@ -24,6 +56,7 @@ export class LeaveConfig {
     const bonus = this.calculateBonusDays(yearsOfService);
     return this.baseDaysPerYear + bonus;
   }
+
   calculateAllowedDays(params: {
     signDate: Date | null;
     targetYear: number;
@@ -107,10 +140,12 @@ export class LeaveConfig {
 
     if (start > end) return 0;
 
+    const isCurrentYear = now.getFullYear() === targetYear;
+
     const months =
       (end.getFullYear() - start.getFullYear()) * 12 +
       (end.getMonth() - start.getMonth()) +
-      1;
+      (isCurrentYear ? 0 : 1);
 
     return Math.max(0, months);
   }

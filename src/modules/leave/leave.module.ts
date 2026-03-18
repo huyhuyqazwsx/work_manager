@@ -11,6 +11,7 @@ import { StorageModule } from '@infra/storage/storage.module';
 import { CompensationModule } from '@modules/compensation/compensation.module';
 import { PrismaFileUploadQueueRepository } from '@modules/leave/infrastructure/Repository/file-upload-queue.repository';
 import { FileUploadCronJob } from '@modules/leave/application/worker/file-handle.worker';
+import { LeaveAutoRejectWorker } from '@modules/leave/application/worker/leave-auto-reject.worker';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { FileUploadCronJob } from '@modules/leave/application/worker/file-handle
       useClass: PrismaFileUploadQueueRepository,
     },
     FileUploadCronJob,
+    LeaveAutoRejectWorker,
   ],
   controllers: [LeaveController],
 })

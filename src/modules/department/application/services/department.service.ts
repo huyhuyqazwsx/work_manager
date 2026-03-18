@@ -29,7 +29,7 @@ export class DepartmentService
   async findAll(tx?: PrismaTransactionClient): Promise<Department[]> {
     const key = CACHE_KEYS.all();
     const cached = await this.cache.get<Department[]>(key);
-    if (cached) return cached;
+    if (cached) return cached.map((d) => Department.fromPlain(d));
 
     const result = await this.departmentRepository.findAll(tx);
     await this.cache.set(key, result, CACHE_TTL);
@@ -42,7 +42,7 @@ export class DepartmentService
   ): Promise<Department> {
     const key = CACHE_KEYS.byId(id);
     const cached = await this.cache.get<Department>(key);
-    if (cached) return cached;
+    if (cached) return Department.fromPlain(cached);
 
     const result = await super.findById(id, tx);
     await this.cache.set(key, result, CACHE_TTL);

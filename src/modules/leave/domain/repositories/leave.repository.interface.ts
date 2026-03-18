@@ -40,4 +40,6 @@ export interface ILeaveRequestRepository extends IBaseRepository<LeaveRequest> {
   ): Promise<RangeExistDto>;
 
   getLeaveRequestByBod(): Promise<LeaveRequest[]>;
+
+  findPendingForAutoReject(limit: number): Promise<LeaveRequest[]>;
 }

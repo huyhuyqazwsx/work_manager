@@ -16,6 +16,26 @@ export class Department {
     this.isActive = isActive ?? true;
   }
 
+  static fromPlain(plain: {
+    id: string;
+    name: string;
+    code: string;
+    managerId: string | null;
+    isActive: boolean;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  }): Department {
+    return new Department(
+      plain.id,
+      plain.name,
+      plain.code,
+      plain.managerId,
+      plain.isActive,
+      plain.createdAt ? new Date(plain.createdAt) : undefined,
+      plain.updatedAt ? new Date(plain.updatedAt) : undefined,
+    );
+  }
+
   updateName(name: string): void {
     if (this.name !== name) {
       this.name = name;

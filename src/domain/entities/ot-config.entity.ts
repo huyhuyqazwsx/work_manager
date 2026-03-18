@@ -15,6 +15,26 @@ export class OTConfig {
     this.updatedAt = updatedAt ?? new Date();
   }
 
+  static fromPlain(plain: {
+    id: string;
+    maxHoursPerDay: number;
+    maxHoursPerMonth: number;
+    maxHoursPerYear: number;
+    isActive: boolean;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  }): OTConfig {
+    return new OTConfig(
+      plain.id,
+      plain.maxHoursPerDay,
+      plain.maxHoursPerMonth,
+      plain.maxHoursPerYear,
+      plain.isActive,
+      plain.createdAt ? new Date(plain.createdAt) : undefined,
+      plain.updatedAt ? new Date(plain.updatedAt) : undefined,
+    );
+  }
+
   validateHours(params: {
     requestedHours: number;
     usedHoursToday: number;

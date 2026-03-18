@@ -275,4 +275,14 @@ export class PrismaLeaveRequestRepository
 
     return leaveRequests.map((r) => LeaveRequestMapper.toDomain(r));
   }
+
+  async findPendingForAutoReject(limit: number): Promise<LeaveRequest[]> {
+    const raws = await this.prismaModel.findMany({
+      where: { status: LeaveRequestStatus.PENDING },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+
+    return raws.map((r) => LeaveRequestMapper.toDomain(r));
+  }
 }

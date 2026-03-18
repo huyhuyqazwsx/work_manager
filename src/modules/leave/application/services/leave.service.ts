@@ -207,6 +207,14 @@ export class LeaveService
         EmailType.CREATE_LEAVE_REQUEST,
         tx,
       );
+
+      if (leaveType.code == LeaveTypeCode.COMPENSATORY)
+        await this.compensationService.deductHours(
+          dto.userId,
+          new Date().getFullYear(),
+          paidDays * 8,
+          tx,
+        );
     });
 
     if (file) {
@@ -270,7 +278,16 @@ export class LeaveService
     leaveRequest.reject(approverId);
     if (reason) leaveRequest.updateReason(reason);
 
-    await this.leaveRepository.update(leaveRequestId, leaveRequest);
+    await this.runInTransaction(async (tx) => {
+      await this.update(leaveRequestId, leaveRequest, tx);
+      if (leaveRequest.leaveTypeCode == LeaveTypeCode.COMPENSATORY)
+        await this.compensationService.earnHours(
+          leaveRequest.createdBy,
+          new Date(leaveRequest.createdAt).getFullYear(),
+          leaveRequest.paidDays * 8,
+          tx,
+        );
+    });
     return leaveRequest;
   }
 
@@ -295,8 +312,17 @@ export class LeaveService
     }
 
     leaveRequest.cancel();
+    await this.runInTransaction(async (tx) => {
+      await this.update(leaveRequestId, leaveRequest, tx);
+      if (leaveRequest.leaveTypeCode == LeaveTypeCode.COMPENSATORY)
+        await this.compensationService.earnHours(
+          leaveRequest.createdBy,
+          new Date(leaveRequest.createdAt).getFullYear(),
+          leaveRequest.paidDays * 8,
+          tx,
+        );
+    });
 
-    await this.leaveRepository.update(leaveRequestId, leaveRequest);
     return leaveRequest;
   }
 
@@ -533,6 +559,38 @@ export class LeaveService
     return this.leaveRepository.getLeaveRequestByBod();
   }
 
+  async autoRejectLeave(leaveId: string, reason: string): Promise<void> {
+    const leave = await this.leaveRepository.findById(leaveId);
+    if (!leave)
+      throw new AppException(
+        AppError.LEAVE_NOT_FOUND,
+        'Leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
+
+    leave.reject('system');
+    leave.updateReason(reason);
+
+    const user = await this.userService.findUserById(leave.createdBy);
+
+    await this.leaveRepository.runInTransaction(async (tx) => {
+      await this.leaveRepository.update(leave.id, leave, tx);
+      await this.notifyApprover(
+        leave,
+        user!,
+        null,
+        EmailType.REJECTED_LEAVE_REQUEST,
+        tx,
+      );
+    });
+
+    this.logger.log(`Auto-rejected leave ${leaveId}: ${reason}`);
+  }
+
+  async findPendingForAutoReject(limit: number): Promise<LeaveRequest[]> {
+    return this.leaveRepository.findPendingForAutoReject(limit);
+  }
+
   // ================ Private =========================
   private isOverlapping(
     existing: LeaveRequest,
@@ -657,15 +715,24 @@ export class LeaveService
           file,
         );
 
-        await this.leaveRepository.update(leaveRequestId, {
-          attachmentUrl: url,
-        });
-        await this.fileUploadQueueRepository.save({
-          id: randomUUID(),
-          leaveRequestId,
-          localPath: absPath,
-          retryCount: 0,
-          createdAt: new Date(),
+        await this.runInTransaction(async (tx) => {
+          await this.leaveRepository.update(
+            leaveRequestId,
+            {
+              attachmentUrl: url,
+            },
+            tx,
+          );
+          await this.fileUploadQueueRepository.save(
+            {
+              id: randomUUID(),
+              leaveRequestId,
+              localPath: absPath,
+              retryCount: 0,
+              createdAt: new Date(),
+            },
+            tx,
+          );
         });
 
         this.logger.log(`Saved local, queued for sync: ${absPath}`);

@@ -6,7 +6,7 @@ export interface InviteForm {
   department: string;
   position?: string;
   contractType: ContractType;
-  joinDate: Date;
+  joinDate?: Date;
   contractSignedDate?: Date;
   role: UserRole;
 }
