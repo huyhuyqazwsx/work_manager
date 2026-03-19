@@ -28,4 +28,7 @@ export interface IUserService extends IBaseCrudService<UserAuth> {
 
   //Lấy nhân viên theo phòng ban
   getUsersByUserOfDepartment(managerId: string): Promise<UserInDepartmentDto[]>;
+
+  //Thay đổi role
+  changeRole(bodId: string, userId: string, role: UserRole): Promise<void>;
 }

@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Inject,
   Param,
+  Patch,
   Post,
   Put,
   Req,
@@ -20,6 +21,11 @@ import { AccessTokenGuard } from '../../../jwt/guards/access-token.guard';
 import { UserResponseDto } from '@modules/user/application/dto/user-response.dto';
 import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
 import { ApiOperation, ApiParam } from '@nestjs/swagger';
+import { Roles } from '@modules/jwt/decorators/roles.decorator';
+import { UserRole } from '@domain/enum/enum';
+import { ChangeRoleDto } from '@modules/user/application/dto/change-role.dto';
+import { CurrentUser } from '@modules/jwt/decorators/current-user.decorator';
+import * as requestTypes from '@domain/type/request.types';
 
 @Controller('user')
 export class UserController {
@@ -104,5 +110,18 @@ export class UserController {
       success: true,
       message: 'Email verified successfully',
     };
+  }
+
+  @Patch(':id/change-role')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Change user role (only BOD)' })
+  @ApiParam({ name: 'id', type: String, description: 'User ID' })
+  @Roles(UserRole.BOD)
+  async changeRole(
+    @Param('id') userId: string,
+    @Body() dto: ChangeRoleDto,
+    @CurrentUser() currentUser: requestTypes.RequestUser,
+  ): Promise<void> {
+    await this.userService.changeRole(currentUser.userId, userId, dto.role);
   }
 }

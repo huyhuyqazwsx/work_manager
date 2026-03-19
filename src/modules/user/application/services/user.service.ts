@@ -344,4 +344,91 @@ export class UserService
     }
     return this.userRepository.getUsersByUserOfDepartment(managerId);
   }
+
+  async changeRole(
+    bodId: string,
+    userId: string,
+    role: UserRole,
+  ): Promise<void> {
+    const [bod, user] = await Promise.all([
+      this.userRepository.findById(bodId),
+      this.userRepository.findById(userId),
+    ]);
+
+    if (bod == null || bod.isBOD()) {
+      throw new AppException(
+        AppError.AUTH_UNAUTHORIZED,
+        'Unauthorized bod',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (user == null || !user.isActive()) {
+      throw new AppException(
+        AppError.BAD_REQUEST,
+        'User not found or is not active',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    await this.runInTransaction(async (tx) => {
+      user.role = role;
+      await this.userRepository.update(user.id, user, tx);
+
+      switch (role) {
+        case UserRole.DEPARTMENT_HEAD: {
+          const department = await this.departmentService.findById(
+            user.departmentId,
+          );
+
+          if (!department) {
+            throw new AppException(
+              AppError.DEPARTMENT_NOT_FOUND,
+              'Department not found with user',
+              HttpStatus.NOT_FOUND,
+            );
+          }
+
+          department.managerId = userId;
+          await this.departmentService.update(department.id, department, tx);
+          break;
+        }
+
+        case UserRole.HR: {
+          const department = await this.departmentService.findByName(
+            'Human Resources Department',
+          );
+
+          if (!department) {
+            throw new AppException(
+              AppError.DEPARTMENT_NOT_FOUND,
+              'Department not found with user',
+              HttpStatus.NOT_FOUND,
+            );
+          }
+
+          department.managerId = userId;
+          await this.departmentService.update(department.id, department, tx);
+          break;
+        }
+
+        case UserRole.EMPLOYEE: {
+          const department =
+            await this.departmentService.findByManagerId(userId);
+
+          if (department) {
+            department.managerId = null;
+            await this.departmentService.update(department.id, department, tx);
+          }
+          break;
+        }
+
+        case UserRole.BOD:
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
 }

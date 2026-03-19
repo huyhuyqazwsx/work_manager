@@ -160,10 +160,10 @@ export class MailService
               ttl,
             );
 
-            // await this.sendVerificationEmail(
-            //   job.email,
-            //   payload.verificationToken,
-            // );
+            await this.sendVerificationEmail(
+              job.emailSend!,
+              payload.verificationToken,
+            );
 
             this.logger.log(`Verification email processed: ${job.emailSend}`);
             break;
@@ -172,11 +172,11 @@ export class MailService
           case EmailType.CREATE_LEAVE_REQUEST: {
             const payload = job.payload as unknown as LeaveRequestEmailPayload;
 
-            // await this.sendLeaveRequest(
-            //   job.emailSend ?? [],
-            //   payload,
-            //   job.emailCC,
-            // );
+            await this.sendLeaveRequest(
+              job.emailSend ?? [],
+              payload,
+              job.emailCC,
+            );
             this.logger.log(job);
             break;
           }
