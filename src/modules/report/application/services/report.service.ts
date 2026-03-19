@@ -16,6 +16,9 @@ import {
   LeaveYearlyRowDto,
 } from '../dto/leave-yearly-report';
 import * as holidayRepositoryInterface from '@modules/holiday/domain/repositories/holiday.repository.interface';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-report.dto';
+import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
 
 const DAY_OF_WEEK = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 type DayFlag =
@@ -344,6 +347,16 @@ export class ReportService implements IReportService {
     }
 
     return { month, year, rows: allRows };
+  }
+
+  async getLeaveReport(
+    dto: GetLeaveReportDto,
+  ): Promise<PaginatedLeaveRequests> {
+    return this.reportRepository.getLeaveReport(dto);
+  }
+
+  async getAllOTPlanForHR(dto: GetOTPlanReportDto) {
+    return this.reportRepository.getOTPlanReport(dto);
   }
 
   // ===== Private helpers =====

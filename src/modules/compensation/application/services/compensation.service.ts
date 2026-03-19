@@ -20,7 +20,7 @@ export class CompensationService
   }
 
   async earnHours(
-    userCode: string,
+    userId: string,
     targetYear: number,
     hours: number,
     tx?: PrismaTransactionClient,
@@ -33,19 +33,19 @@ export class CompensationService
       );
     }
 
-    const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
+    const balance = await this.getBalanceByUserId(userId, targetYear, tx);
     balance.addHours(hours);
     await this.compensationRepository.update(balance.id, balance, tx);
     return balance;
   }
 
   async getBalanceByUserId(
-    userCode: string,
+    userId: string,
     targetYear: number,
     tx?: PrismaTransactionClient,
   ): Promise<CompensationBalance> {
     const balance = await this.compensationRepository.findBalanceByUserId(
-      userCode,
+      userId,
       targetYear,
       tx,
     );
@@ -53,7 +53,7 @@ export class CompensationService
     if (!balance) {
       const newBalance = new CompensationBalance(
         randomUUID(),
-        userCode,
+        userId,
         targetYear,
         0,
       );
@@ -65,7 +65,7 @@ export class CompensationService
   }
 
   async deductHours(
-    userCode: string,
+    userId: string,
     targetYear: number,
     hours: number,
     tx?: PrismaTransactionClient,
@@ -78,7 +78,7 @@ export class CompensationService
       );
     }
 
-    const balance = await this.getBalanceByUserId(userCode, targetYear, tx);
+    const balance = await this.getBalanceByUserId(userId, targetYear, tx);
 
     if (!balance.canDeduct(hours)) {
       throw new AppException(

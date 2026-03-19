@@ -15,3 +15,13 @@ export interface LeaveRequestEmailPayload {
   managerName: string;
   actionLink: string;
 }
+
+export interface LeaveStatusEmailPayload {
+  employeeName: string;
+  leaveTypeCode?: string | null;
+  fromDate: string;
+  toDate: string;
+  totalDays: number;
+  managerName?: string | null;
+  rejectReason?: string | null;
+}

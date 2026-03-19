@@ -70,6 +70,8 @@ export class PrismaOTTicketRepository
             OTTicketStatus.CANCELLED,
             OTTicketStatus.EXPIRED,
             OTTicketStatus.REJECTED,
+            OTTicketStatus.SCHEDULED,
+            OTTicketStatus.IN_PROGRESS,
           ],
         },
         OR: [
@@ -88,19 +90,7 @@ export class PrismaOTTicketRepository
       ) {
         return total + (ticket.actualHours ?? 0);
       }
-
-      // Các status khác → tính theo thời gian thực tế hoặc scheduled
-      return (
-        total +
-        this.calcHoursInRange(
-          ticket.checkIn,
-          ticket.checkOut,
-          ticket.startTime,
-          ticket.endTime,
-          start,
-          end,
-        )
-      );
+      return total;
     }, 0);
   }
 
@@ -116,6 +106,8 @@ export class PrismaOTTicketRepository
             OTTicketStatus.CANCELLED,
             OTTicketStatus.EXPIRED,
             OTTicketStatus.REJECTED,
+            OTTicketStatus.SCHEDULED,
+            OTTicketStatus.IN_PROGRESS,
           ],
         },
         OR: [
@@ -134,18 +126,7 @@ export class PrismaOTTicketRepository
       ) {
         return total + (ticket.actualHours ?? 0);
       }
-
-      return (
-        total +
-        this.calcHoursInRange(
-          ticket.checkIn,
-          ticket.checkOut,
-          ticket.startTime,
-          ticket.endTime,
-          start,
-          end,
-        )
-      );
+      return total;
     }, 0);
   }
 
@@ -165,6 +146,8 @@ export class PrismaOTTicketRepository
             OTTicketStatus.CANCELLED,
             OTTicketStatus.EXPIRED,
             OTTicketStatus.REJECTED,
+            OTTicketStatus.SCHEDULED,
+            OTTicketStatus.IN_PROGRESS,
           ],
         },
         OR: [
@@ -183,18 +166,7 @@ export class PrismaOTTicketRepository
       ) {
         return total + (ticket.actualHours ?? 0);
       }
-
-      return (
-        total +
-        this.calcHoursInRange(
-          ticket.checkIn,
-          ticket.checkOut,
-          ticket.startTime,
-          ticket.endTime,
-          start,
-          end,
-        )
-      );
+      return total;
     }, 0);
   }
 
@@ -231,36 +203,5 @@ export class PrismaOTTicketRepository
         updatedAt: new Date(),
       },
     });
-  }
-
-  //================PRIVATE==================
-
-  private calcHoursInRange(
-    start: Date | null | undefined,
-    end: Date | null | undefined,
-    scheduledStart: Date | null | undefined,
-    scheduledEnd: Date | null | undefined,
-    rangeStart: Date,
-    rangeEnd: Date,
-  ): number {
-    // Fallback về scheduled nếu chưa có thực tế
-    const effectiveStart = start ?? scheduledStart;
-    const effectiveEnd = end ?? scheduledEnd;
-
-    if (!effectiveStart || !effectiveEnd) return 0;
-
-    // Nếu overnight → clip về 00:00 ngày hôm sau
-    const midnight = new Date(effectiveStart);
-    midnight.setDate(midnight.getDate() + 1);
-    midnight.setHours(0, 0, 0, 0);
-
-    const clippedEnd = effectiveEnd > midnight ? midnight : effectiveEnd;
-    const clippedStart =
-      effectiveStart < rangeStart ? rangeStart : effectiveStart;
-    const finalEnd = clippedEnd > rangeEnd ? rangeEnd : clippedEnd;
-
-    if (clippedStart >= finalEnd) return 0;
-
-    return (finalEnd.getTime() - clippedStart.getTime()) / (1000 * 60 * 60);
   }
 }

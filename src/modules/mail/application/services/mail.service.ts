@@ -11,8 +11,16 @@ import { EmailType } from '@domain/enum/enum';
 import { InviteEmailPayload } from '@modules/mail/helper/mail-helper';
 import * as cacheRepositoryInterface from '@domain/cache/cache.repository.interface';
 import * as emailQueueRepositoryInterface from '@modules/mail/domain/email-queue.repository.interface';
-import { LeaveRequestEmailPayload } from '@domain/type/mail.types';
+import {
+  LeaveRequestEmailPayload,
+  LeaveStatusEmailPayload,
+} from '@domain/type/mail.types';
 import { AppError, AppException } from '@domain/errors';
+import {
+  buildLeaveApprovedTemplate,
+  buildLeaveCancelledTemplate,
+  buildLeaveRejectedTemplate,
+} from '@modules/mail/application/templates/leave-status-email.template';
 
 @Injectable()
 export class MailService
@@ -178,6 +186,39 @@ export class MailService
               job.emailCC,
             );
             this.logger.log(job);
+            break;
+          }
+
+          case EmailType.APPROVED_LEAVE_REQUEST: {
+            const payload = job.payload as unknown as LeaveStatusEmailPayload;
+            await this.sendRawEmail(
+              job.emailSend ?? [],
+              '[SkyCorp HRM] Yêu cầu nghỉ phép đã được phê duyệt',
+              buildLeaveApprovedTemplate(payload),
+              job.emailCC,
+            );
+            break;
+          }
+
+          case EmailType.REJECTED_LEAVE_REQUEST: {
+            const payload = job.payload as unknown as LeaveStatusEmailPayload;
+            await this.sendRawEmail(
+              job.emailSend ?? [],
+              '[SkyCorp HRM] Yêu cầu nghỉ phép bị từ chối',
+              buildLeaveRejectedTemplate(payload),
+              job.emailCC,
+            );
+            break;
+          }
+
+          case EmailType.CANCELLED_LEAVE_REQUEST: {
+            const payload = job.payload as unknown as LeaveStatusEmailPayload;
+            await this.sendRawEmail(
+              job.emailSend ?? [],
+              '[SkyCorp HRM] Yêu cầu nghỉ phép đã bị hủy',
+              buildLeaveCancelledTemplate(payload),
+              job.emailCC,
+            );
             break;
           }
 

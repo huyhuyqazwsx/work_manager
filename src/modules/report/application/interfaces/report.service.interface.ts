@@ -1,5 +1,9 @@
 import { LeaveMonthlyReportDto } from '@modules/report/application/dto/leave-monthly-report';
 import { LeaveYearlyReportDto } from '@modules/report/application/dto/leave-yearly-report';
+import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-report.dto';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
+import { OTPlan } from '@domain/entities/ot-plan.entity';
 
 export interface IReportService {
   /**
@@ -41,4 +45,16 @@ export interface IReportService {
   ): Promise<LeaveMonthlyReportDto>;
 
   getLeaveYearlyReportAll(year: number): Promise<LeaveYearlyReportDto>;
+
+  getLeaveReport(dto: GetLeaveReportDto): Promise<PaginatedLeaveRequests>;
+
+  getAllOTPlanForHR(dto: GetOTPlanReportDto): Promise<{
+    data: OTPlan[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>;
 }

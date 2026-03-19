@@ -112,16 +112,16 @@ export class UserController {
     };
   }
 
-  @Patch(':id/change-role')
+  @UseGuards(AccessTokenGuard)
+  @Patch('/change-role')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Change user role (only BOD)' })
   @ApiParam({ name: 'id', type: String, description: 'User ID' })
   @Roles(UserRole.BOD)
   async changeRole(
-    @Param('id') userId: string,
     @Body() dto: ChangeRoleDto,
     @CurrentUser() currentUser: requestTypes.RequestUser,
   ): Promise<void> {
-    await this.userService.changeRole(currentUser.userId, userId, dto.role);
+    await this.userService.changeRole(currentUser.userId, dto.userId, dto.role);
   }
 }

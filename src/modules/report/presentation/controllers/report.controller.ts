@@ -1,8 +1,10 @@
 import { Controller, Get, Inject, Query, Res } from '@nestjs/common';
-import { ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import express from 'express';
 import * as reportServiceInterface from '@modules/report/application/interfaces/report.service.interface';
 import { ExcelExportService } from '@modules/report/application/services/excel-export.service';
+import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-report.dto';
+import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -39,5 +41,17 @@ export class ReportController {
       parseInt(year),
     );
     await this.excelExportService.exportLeaveYearly(report, res);
+  }
+
+  @Get('leave')
+  @ApiOperation({ summary: 'Get leave report with filters' })
+  async getLeaveReport(@Query() dto: GetLeaveReportDto) {
+    return this.reportService.getLeaveReport(dto);
+  }
+
+  @Get('ot-plans')
+  @ApiOperation({ summary: 'HR get all OT plans with filters' })
+  async getAllOTPlanForHR(@Query() dto: GetOTPlanReportDto) {
+    return this.reportService.getAllOTPlanForHR(dto);
   }
 }

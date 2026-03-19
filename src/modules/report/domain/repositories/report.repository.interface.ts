@@ -1,4 +1,8 @@
 import { LeaveRequestStatus } from '@domain/enum/enum';
+import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-report.dto';
+import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
+import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
+import { OTPlan } from '@domain/entities/ot-plan.entity';
 
 export interface LeaveRequestRaw {
   id: string;
@@ -33,4 +37,16 @@ export interface IReportRepository {
   ): Promise<{ minDate: Date | null; maxDate: Date | null }>;
 
   findHolidaysByMonth(month: number, year: number): Promise<HolidayRaw[]>;
+
+  getLeaveReport(dto: GetLeaveReportDto): Promise<PaginatedLeaveRequests>;
+
+  getOTPlanReport(dto: GetOTPlanReportDto): Promise<{
+    data: OTPlan[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>;
 }

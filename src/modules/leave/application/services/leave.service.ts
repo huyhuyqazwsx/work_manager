@@ -483,9 +483,11 @@ export class LeaveService
 
     const [leaveConfig, compensation, summary] = await Promise.all([
       this.policyService.getLeaveConfig(user.contractType).catch(() => null),
-      this.compensationService.getBalanceByUserId(user.code!, targetYear),
+      this.compensationService.getBalanceByUserId(user.id, targetYear),
       this.leaveRepository.getAnnualLeaveSummary(userId, targetYear),
     ]);
+
+    // this.logger.debug(compensation);
 
     if (!leaveConfig?.isActive) {
       return {
@@ -679,7 +681,7 @@ export class LeaveService
 
     if (leaveType.isCompensatoryLeave()) {
       const balance = await this.compensationService.getBalanceByUserId(
-        user.code!,
+        user.id,
         targetYear,
       );
 
@@ -764,16 +766,37 @@ export class LeaveService
         };
         break;
 
-      case EmailType.CANCELLED_LEAVE_REQUEST:
-        payload = {};
-        break;
-
       case EmailType.APPROVED_LEAVE_REQUEST:
-        payload = {};
+        payload = {
+          employeeName: user.fullName,
+          leaveTypeCode: leaveRequest.leaveTypeCode,
+          fromDate: leaveRequest.fromDate.toISOString(),
+          toDate: leaveRequest.toDate.toISOString(),
+          totalDays: leaveRequest.totalDays,
+          managerName: managerName ?? 'Không tên',
+        };
         break;
 
       case EmailType.REJECTED_LEAVE_REQUEST:
-        payload = {};
+        payload = {
+          employeeName: user.fullName,
+          leaveTypeCode: leaveRequest.leaveTypeCode,
+          fromDate: leaveRequest.fromDate.toISOString(),
+          toDate: leaveRequest.toDate.toISOString(),
+          totalDays: leaveRequest.totalDays,
+          managerName: managerName ?? 'Không tên',
+          rejectReason: leaveRequest.reason,
+        };
+        break;
+
+      case EmailType.CANCELLED_LEAVE_REQUEST:
+        payload = {
+          employeeName: user.fullName,
+          leaveTypeCode: leaveRequest.leaveTypeCode,
+          fromDate: leaveRequest.fromDate.toISOString(),
+          toDate: leaveRequest.toDate.toISOString(),
+          totalDays: leaveRequest.totalDays,
+        };
         break;
 
       default:

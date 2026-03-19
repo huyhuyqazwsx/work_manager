@@ -3,7 +3,7 @@ import { IBaseCrudService } from '@domain/crudservice/base-crud.service.interfac
 
 export interface ICompensationService extends IBaseCrudService<CompensationBalance> {
   getBalanceByUserId(
-    userCode: string,
+    userId: string,
     targetYear: number,
     tx?: unknown,
   ): Promise<CompensationBalance>;

@@ -17,12 +17,20 @@ import { PrismaTransactionClient } from '@domain/type/prisma-transaction.type';
 import { UserInDepartmentDto } from '@modules/user/application/dto/user-in-department.dto';
 import { AppError, AppException } from '@domain/errors';
 
+const CACHE_TTL = 60 * 60;
+const CACHE_KEYS = {
+  all: () => 'users:all',
+  byId: (id: string) => `user:id:${id}`,
+  byEmail: (email: string) => `user:email:${email}`,
+};
+
 @Injectable()
 export class UserService
   extends BaseCrudService<UserAuth>
   implements IUserService
 {
   private readonly logger = new Logger(UserService.name);
+
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: userRepositoryInterface.IUserRepository,
@@ -37,6 +45,25 @@ export class UserService
   ) {
     super(userRepository);
   }
+
+  // ===== Override base =====
+
+  async update(
+    id: string,
+    entity: Partial<UserAuth>,
+    tx?: PrismaTransactionClient,
+  ): Promise<void> {
+    await super.update(id, entity, tx);
+    await this.invalidateCache(id, entity.email);
+  }
+
+  async delete(id: string, tx?: PrismaTransactionClient): Promise<void> {
+    const user = await this.userRepository.findById(id);
+    await super.delete(id, tx);
+    await this.invalidateCache(id, user?.email);
+  }
+
+  // ===== Public =====
 
   findUsersByRole(role: UserRole): Promise<UserAuth[]> {
     return this.userRepository.findByRole(role);
@@ -72,7 +99,7 @@ export class UserService
   async findAllUsers(): Promise<UserResponseDto[]> {
     this.logger.log('Finding all users');
 
-    const key = 'users:all';
+    const key = CACHE_KEYS.all();
     const cached = await this.cache.get<UserResponseDto[]>(key);
     if (cached) return cached;
 
@@ -94,7 +121,7 @@ export class UserService
       contractSignedDate: user.contractSignedDate,
     }));
 
-    await this.cache.set(key, result, 60 * 60);
+    await this.cache.set(key, result, CACHE_TTL);
     return result;
   }
 
@@ -112,11 +139,18 @@ export class UserService
   }
 
   async updateUser(id: string, user: Partial<UserAuth>): Promise<void> {
-    await this.findUserById(id);
+    const existing = await this.findUserById(id);
+    if (!existing) {
+      throw new AppException(
+        AppError.USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
     if (user.email) {
-      const existingUser = await this.userRepository.findByEmail(user.email);
-      if (existingUser && existingUser.id !== id) {
+      const existingByEmail = await this.userRepository.findByEmail(user.email);
+      if (existingByEmail && existingByEmail.id !== id) {
         throw new AppException(
           AppError.USER_ALREADY_EXISTS,
           `Email ${user.email} is already taken`,
@@ -125,23 +159,14 @@ export class UserService
       }
     }
 
-    await this.userRepository.update(id, user);
-    await this.cache.delete(`user:id:${id}`);
-    await this.cache.delete('users:all');
-    if (user.email) {
-      await this.cache.delete(`user:email:${user.email}`);
-    }
+    await this.update(id, user);
   }
 
   async deleteUser(id: string): Promise<void> {
     await this.findUserById(id);
-
-    await this.userRepository.delete(id);
-    await this.cache.delete(`user:id:${id}`);
-    await this.cache.delete('users:all');
+    await this.delete(id);
   }
 
-  //Gửi xác thực cho email
   async createPendingUsersAndInvite(
     users: UserAuth[],
     emails: string[],
@@ -154,7 +179,6 @@ export class UserService
       await this.mailService.createMany(
         emails.map((email) => {
           const verificationToken = randomBytes(32).toString('hex');
-
           return new EmailQueue(randomUUID(), email, [], EmailType.INVITE, {
             verificationToken,
           });
@@ -173,9 +197,7 @@ export class UserService
       email,
       [],
       EmailType.INVITE,
-      {
-        verificationToken,
-      },
+      { verificationToken },
     );
     await this.mailService.create(emailQueue);
   }
@@ -201,11 +223,9 @@ export class UserService
       );
     }
 
-    // ACTIVE / INACTIVE không cần xử lý thêm
     result.ACTIVE.push(...accountBuckets.active);
     result.INACTIVE.push(...accountBuckets.inactive);
 
-    // Emails cần invite: notFound (tạo mới) + pendingInSystem (resend)
     const emailsToInvite: string[] = [];
     const newUsers: UserAuth[] = [];
 
@@ -252,7 +272,6 @@ export class UserService
     return result;
   }
 
-  //Xác thực
   async verifyEmail(email: string, token: string): Promise<void> {
     const user = await this.userRepository.findByEmail(email);
 
@@ -264,9 +283,7 @@ export class UserService
       );
     }
 
-    if (user.isActive()) {
-      return;
-    }
+    if (user.isActive()) return;
 
     if (user.isInactive()) {
       throw new AppException(
@@ -303,10 +320,7 @@ export class UserService
       );
     }
 
-    await this.userRepository.update(user.id, {
-      status: UserStatus.ACTIVE,
-    });
-
+    await this.update(user.id, { status: UserStatus.ACTIVE });
     await this.cache.delete(cacheKey);
   }
 
@@ -355,7 +369,7 @@ export class UserService
       this.userRepository.findById(userId),
     ]);
 
-    if (bod == null || bod.isBOD()) {
+    if (bod == null || !bod.isBOD()) {
       throw new AppException(
         AppError.AUTH_UNAUTHORIZED,
         'Unauthorized bod',
@@ -373,7 +387,7 @@ export class UserService
 
     await this.runInTransaction(async (tx) => {
       user.role = role;
-      await this.userRepository.update(user.id, user, tx);
+      await this.update(user.id, user, tx);
 
       switch (role) {
         case UserRole.DEPARTMENT_HEAD: {
@@ -424,11 +438,19 @@ export class UserService
         }
 
         case UserRole.BOD:
-          break;
-
         default:
           break;
       }
     });
+  }
+
+  // ===== Private =====
+
+  private async invalidateCache(id?: string, email?: string): Promise<void> {
+    await Promise.all([
+      this.cache.delete(CACHE_KEYS.all()),
+      id ? this.cache.delete(CACHE_KEYS.byId(id)) : Promise.resolve(),
+      email ? this.cache.delete(CACHE_KEYS.byEmail(email)) : Promise.resolve(),
+    ]);
   }
 }
