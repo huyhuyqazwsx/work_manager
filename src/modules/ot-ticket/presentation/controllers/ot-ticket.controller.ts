@@ -2,11 +2,11 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Patch,
-  Inject,
-  UseGuards,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import * as otTicketServiceInterface from '@modules/ot-ticket/application/interfaces/ot-ticket.service.interface';
@@ -84,7 +84,7 @@ export class OTTicketController {
   @Patch(':id/check-in')
   @ApiOperation({ summary: 'Check in OT ticket' })
   @ApiParam({ name: 'id', type: String })
-  @Roles(UserRole.EMPLOYEE, UserRole.DEPARTMENT_HEAD)
+  @Roles(UserRole.EMPLOYEE, UserRole.DEPARTMENT_HEAD, UserRole.HR)
   checkIn(
     @Param('id') id: string,
     @CurrentUser() user: requestTypes.RequestUser,
@@ -101,7 +101,7 @@ export class OTTicketController {
   @Patch(':id/check-out')
   @ApiOperation({ summary: 'Check out OT ticket' })
   @ApiParam({ name: 'id', type: String })
-  @Roles(UserRole.EMPLOYEE, UserRole.DEPARTMENT_HEAD)
+  @Roles(UserRole.EMPLOYEE, UserRole.DEPARTMENT_HEAD, UserRole.HR)
   checkOut(
     @Param('id') id: string,
     @CurrentUser() user: requestTypes.RequestUser,

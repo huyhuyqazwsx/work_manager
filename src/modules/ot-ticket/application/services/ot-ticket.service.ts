@@ -60,7 +60,7 @@ export class OTTicketService
   ): Promise<OTTicket> {
     const ticket = await this.getTicketById(ticketId);
 
-    if (ticket.userId !== userId) {
+    if (ticket.userId != userId) {
       throw new AppException(
         AppError.OT_TICKET_FORBIDDEN,
         'You are not allowed to check in this ticket',
