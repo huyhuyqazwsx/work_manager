@@ -236,6 +236,16 @@ export class LeaveService
         HttpStatus.NOT_FOUND,
       );
 
+    const user = await this.userRepository.findById(leaveRequest.createdBy);
+
+    if (!user) {
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'User created this leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
     if (leaveRequest.status !== LeaveRequestStatus.PENDING) {
       throw new AppException(
         AppError.OT_PLAN_INVALID_STATUS,
@@ -248,7 +258,17 @@ export class LeaveService
 
     leaveRequest.approve(approverId);
 
-    await this.leaveRepository.update(leaveRequestId, leaveRequest);
+    await this.runInTransaction(async (tx) => {
+      await this.leaveRepository.update(leaveRequestId, leaveRequest, tx);
+      await this.notifyApprover(
+        leaveRequest,
+        user,
+        null,
+        EmailType.APPROVED_LEAVE_REQUEST,
+        tx,
+      );
+    });
+
     return leaveRequest;
   }
 
@@ -264,6 +284,16 @@ export class LeaveService
         'Leave request not found',
         HttpStatus.NOT_FOUND,
       );
+
+    const user = await this.userRepository.findById(leaveRequest.createdBy);
+
+    if (!user) {
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'User created this leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
     if (leaveRequest.status !== LeaveRequestStatus.PENDING) {
       throw new AppException(
@@ -287,6 +317,13 @@ export class LeaveService
           leaveRequest.paidDays * 8,
           tx,
         );
+      await this.notifyApprover(
+        leaveRequest,
+        user,
+        null,
+        EmailType.REJECTED_LEAVE_REQUEST,
+        tx,
+      );
     });
     return leaveRequest;
   }
@@ -311,6 +348,16 @@ export class LeaveService
       );
     }
 
+    const user = await this.userRepository.findById(leaveRequest.createdBy);
+
+    if (!user) {
+      throw new AppException(
+        AppError.NOT_FOUND,
+        'User created this leave request not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
     leaveRequest.cancel();
     await this.runInTransaction(async (tx) => {
       await this.update(leaveRequestId, leaveRequest, tx);
@@ -321,6 +368,14 @@ export class LeaveService
           leaveRequest.paidDays * 8,
           tx,
         );
+
+      await this.notifyApprover(
+        leaveRequest,
+        user,
+        null,
+        EmailType.CANCELLED_LEAVE_REQUEST,
+        tx,
+      );
     });
 
     return leaveRequest;
@@ -764,6 +819,18 @@ export class LeaveService
           managerName: managerName ?? 'Không tên',
           actionLink: 'test',
         };
+
+        await this.mailService.create(
+          {
+            id: randomUUID(),
+            type: emailType,
+            emailSend: leaveRequest.emailSend,
+            emailCC: leaveRequest.emailCC,
+            payload,
+            createdAt: new Date(),
+          },
+          tx,
+        );
         break;
 
       case EmailType.APPROVED_LEAVE_REQUEST:
@@ -775,6 +842,18 @@ export class LeaveService
           totalDays: leaveRequest.totalDays,
           managerName: managerName ?? 'Không tên',
         };
+
+        await this.mailService.create(
+          {
+            id: randomUUID(),
+            type: emailType,
+            emailSend: user.email,
+            emailCC: [],
+            payload,
+            createdAt: new Date(),
+          },
+          tx,
+        );
         break;
 
       case EmailType.REJECTED_LEAVE_REQUEST:
@@ -787,6 +866,18 @@ export class LeaveService
           managerName: managerName ?? 'Không tên',
           rejectReason: leaveRequest.reason,
         };
+
+        await this.mailService.create(
+          {
+            id: randomUUID(),
+            type: emailType,
+            emailSend: user.email,
+            emailCC: [],
+            payload,
+            createdAt: new Date(),
+          },
+          tx,
+        );
         break;
 
       case EmailType.CANCELLED_LEAVE_REQUEST:
@@ -797,25 +888,24 @@ export class LeaveService
           toDate: leaveRequest.toDate.toISOString(),
           totalDays: leaveRequest.totalDays,
         };
+
+        await this.mailService.create(
+          {
+            id: randomUUID(),
+            type: emailType,
+            emailSend: leaveRequest.emailSend,
+            emailCC: leaveRequest.emailCC,
+            payload,
+            createdAt: new Date(),
+          },
+          tx,
+        );
         break;
 
       default:
         return;
     }
-
     // this.logger.debug(payload);
-
-    await this.mailService.create(
-      {
-        id: randomUUID(),
-        type: emailType,
-        emailSend: leaveRequest.emailSend,
-        emailCC: leaveRequest.emailCC,
-        payload,
-        createdAt: new Date(),
-      },
-      tx,
-    );
   }
 
   private async validateLeaveRequest(
