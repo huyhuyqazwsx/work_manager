@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +19,10 @@ import * as leaveTypeServiceInterface from '../../application/interfaces/leave-t
 import { LeaveType } from '@domain/entities/leave_type.entity';
 import { CreateLeaveTypeDto } from '../../application/dto/create-leave-type.dto';
 import { UpdateLeaveTypeDto } from '../../application/dto/update-leave-type.dto';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('Leave Type')
 @Controller('leave-type')
 export class LeaveTypeController {

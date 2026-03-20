@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as policyServiceInterface from '../../application/interfaces/policy.service.interface';
@@ -21,7 +22,10 @@ import { CreateOTConfigDto } from '../../application/dto/create-ot-config.dto';
 import { UpdateOTConfigDto } from '../../application/dto/update-ot-config.dto';
 import { UpdatePaidPersonalEventDto } from '../../application/dto/update-paid-personal-event.dto';
 import { CreatePaidPersonalEventDto } from '../../application/dto/create-paid-personal-event.dto';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('Policy')
 @Controller('policy')
 export class PolicyController {

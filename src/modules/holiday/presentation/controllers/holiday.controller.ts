@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import * as holidayServiceInterface from '../../application/interfaces/holiday.service.interface';
 import { randomUUID } from 'node:crypto';
@@ -23,7 +24,10 @@ import { CreateHolidayDto } from '../../application/dto/create-holiday.dto';
 import { UpdateHolidayDto } from '../../application/dto/update-holiday.dto';
 import { Holiday } from '@domain/entities/holiday.entity';
 import { CreateHolidayResponseDto } from '../../application/dto/response-create-holiday.dto';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('Holidays')
 @ApiBearerAuth()
 @Controller('holidays')

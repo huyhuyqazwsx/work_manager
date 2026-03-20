@@ -3,6 +3,7 @@ import * as ExcelJS from 'exceljs';
 import { LeaveMonthlyReportDto } from '../dto/leave-monthly-report';
 import { Response } from 'express';
 import { LeaveYearlyReportDto } from '@modules/report/application/dto/leave-yearly-report';
+import { OTMonthlyReportDto } from '@modules/report/application/dto/ot-monthly-report.dto';
 
 @Injectable()
 export class ExcelExportService {
@@ -473,6 +474,408 @@ export class ExcelExportService {
       `attachment; filename=Leave-report-yearly-${report.year}.xlsx`,
     );
 
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  async exportOTMonthly(
+    report: OTMonthlyReportDto,
+    res: Response,
+  ): Promise<void> {
+    const workbook = new ExcelJS.Workbook();
+
+    // ===== Style helpers =====
+    const headerFill: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' },
+    };
+    const borderStyle: Partial<ExcelJS.Borders> = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+    const headerFont: Partial<ExcelJS.Font> = {
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+      name: 'Arial',
+      size: 10,
+    };
+    const bodyFont: Partial<ExcelJS.Font> = { name: 'Arial', size: 10 };
+    const centerAlign: Partial<ExcelJS.Alignment> = {
+      horizontal: 'center',
+      vertical: 'middle',
+    };
+
+    // ===== Sheet 1: Chi tiết =====
+    const detailSheet = workbook.addWorksheet(
+      `Chi tiet OT T${report.month}-${report.year}`,
+    );
+
+    detailSheet.mergeCells('A1:I1');
+    detailSheet.getCell('A1').value =
+      'Công ty Cổ phần đầu tư phát triển Sky Corporation';
+    detailSheet.getCell('A1').font = { bold: true, name: 'Arial', size: 10 };
+
+    detailSheet.mergeCells('A2:I2');
+    detailSheet.getCell('A2').value =
+      `CHI TIẾT OT THÁNG ${String(report.month).padStart(2, '0')} NĂM ${report.year} - ${report.departmentName.toUpperCase()}`;
+    detailSheet.getCell('A2').font = { bold: true, name: 'Arial', size: 10 };
+
+    const detailHeaders = [
+      'STT',
+      'Mã NV',
+      'Họ và tên',
+      'Phòng ban',
+      'Ngày tháng',
+      'Giờ bắt đầu',
+      'Giờ kết thúc',
+      'Check In',
+      'Check Out',
+      'Tổng số giờ',
+    ];
+
+    const detailHeaderRow = detailSheet.getRow(4);
+    detailHeaders.forEach((h, i) => {
+      const cell = detailHeaderRow.getCell(i + 1);
+      cell.value = h;
+      cell.fill = headerFill;
+      cell.font = headerFont;
+      cell.alignment = centerAlign;
+      cell.border = borderStyle;
+    });
+    detailSheet.getRow(4).height = 20;
+
+    report.detailRows.forEach((row, idx) => {
+      const dataRow = detailSheet.getRow(5 + idx);
+      const values = [
+        idx + 1,
+        row.userCode,
+        row.fullName,
+        row.departmentName,
+        new Date(row.workDate).toLocaleDateString('vi-VN'),
+        new Date(row.startTime).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        new Date(row.endTime).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        row.checkIn
+          ? new Date(row.checkIn).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '',
+        row.checkOut
+          ? new Date(row.checkOut).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '',
+        row.actualHours,
+      ];
+
+      values.forEach((v, i) => {
+        const cell = dataRow.getCell(i + 1);
+        cell.value = v;
+        cell.font = bodyFont;
+        cell.border = borderStyle;
+        cell.alignment = i >= 4 ? centerAlign : { vertical: 'middle' };
+      });
+    });
+
+    detailSheet.getColumn(1).width = 5;
+    detailSheet.getColumn(2).width = 10;
+    detailSheet.getColumn(3).width = 20;
+    detailSheet.getColumn(4).width = 22;
+    detailSheet.getColumn(5).width = 14;
+    detailSheet.getColumn(6).width = 12;
+    detailSheet.getColumn(7).width = 12;
+    detailSheet.getColumn(8).width = 12;
+    detailSheet.getColumn(9).width = 12;
+    detailSheet.getColumn(10).width = 14;
+
+    // ===== Sheet 2: Tổng hợp =====
+    const summarySheet = workbook.addWorksheet(
+      `Tong hop OT T${report.month}-${report.year}`,
+    );
+
+    summarySheet.mergeCells('A1:E1');
+    summarySheet.getCell('A1').value =
+      'Công ty Cổ phần đầu tư phát triển Sky Corporation';
+    summarySheet.getCell('A1').font = { bold: true, name: 'Arial', size: 10 };
+
+    summarySheet.mergeCells('A2:E2');
+    summarySheet.getCell('A2').value =
+      `TỔNG HỢP GIỜ LÀM THÊM THÁNG ${String(report.month).padStart(2, '0')} NĂM ${report.year} - ${report.departmentName.toUpperCase()}`;
+    summarySheet.getCell('A2').font = { bold: true, name: 'Arial', size: 10 };
+
+    const summaryHeaders = ['STT', 'Mã NV', 'Họ và tên', 'Tổng số giờ', 'Tổng'];
+
+    const summaryHeaderRow = summarySheet.getRow(4);
+    summaryHeaders.forEach((h, i) => {
+      const cell = summaryHeaderRow.getCell(i + 1);
+      cell.value = h;
+      cell.fill = headerFill;
+      cell.font = headerFont;
+      cell.alignment = centerAlign;
+      cell.border = borderStyle;
+    });
+    summarySheet.getRow(4).height = 20;
+
+    report.summaryRows.forEach((row, idx) => {
+      const dataRow = summarySheet.getRow(5 + idx);
+      const values = [
+        idx + 1,
+        row.userCode,
+        row.fullName,
+        row.totalHours,
+        row.total,
+      ];
+
+      values.forEach((v, i) => {
+        const cell = dataRow.getCell(i + 1);
+        cell.value = v;
+        cell.font = bodyFont;
+        cell.border = borderStyle;
+        cell.alignment = i >= 3 ? centerAlign : { vertical: 'middle' };
+      });
+    });
+
+    summarySheet.getColumn(1).width = 5;
+    summarySheet.getColumn(2).width = 10;
+    summarySheet.getColumn(3).width = 20;
+    summarySheet.getColumn(4).width = 14;
+    summarySheet.getColumn(5).width = 10;
+
+    // ===== Stream về client =====
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=OT-report-${report.month}-${report.year}.xlsx`,
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  async exportOTMonthlyAll(
+    reports: OTMonthlyReportDto[],
+    res: Response,
+  ): Promise<void> {
+    if (!reports.length) {
+      res.status(204).end();
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const month = reports[0].month;
+    const year = reports[0].year;
+
+    const headerFill: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' },
+    };
+    const deptFill: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9E1F2' },
+    };
+    const borderStyle: Partial<ExcelJS.Borders> = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+    const headerFont: Partial<ExcelJS.Font> = {
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+      name: 'Arial',
+      size: 10,
+    };
+    const bodyFont: Partial<ExcelJS.Font> = { name: 'Arial', size: 10 };
+    const centerAlign: Partial<ExcelJS.Alignment> = {
+      horizontal: 'center',
+      vertical: 'middle',
+    };
+
+    // ===== Sheet Chi tiết =====
+    const detailSheet = workbook.addWorksheet(`Chi tiet OT T${month}-${year}`);
+
+    detailSheet.mergeCells('A1:J1');
+    detailSheet.getCell('A1').value =
+      'Công ty Cổ phần đầu tư phát triển Sky Corporation';
+    detailSheet.getCell('A1').font = { bold: true, name: 'Arial', size: 10 };
+
+    detailSheet.mergeCells('A2:J2');
+    detailSheet.getCell('A2').value =
+      `CHI TIẾT OT THÁNG ${String(month).padStart(2, '0')} NĂM ${year}`;
+    detailSheet.getCell('A2').font = { bold: true, name: 'Arial', size: 10 };
+
+    const detailHeaders = [
+      'STT',
+      'Mã NV',
+      'Họ và tên',
+      'Phòng ban',
+      'Ngày tháng',
+      'Giờ bắt đầu',
+      'Giờ kết thúc',
+      'Check In',
+      'Check Out',
+      'Tổng số giờ',
+    ];
+
+    const detailHeaderRow = detailSheet.getRow(4);
+    detailHeaders.forEach((h, i) => {
+      const cell = detailHeaderRow.getCell(i + 1);
+      cell.value = h;
+      cell.fill = headerFill;
+      cell.font = headerFont;
+      cell.alignment = centerAlign;
+      cell.border = borderStyle;
+    });
+    detailSheet.getRow(4).height = 20;
+
+    let detailCurrentRow = 5;
+    let detailStt = 1;
+
+    for (const report of reports) {
+      // Department header
+      detailSheet.mergeCells(detailCurrentRow, 1, detailCurrentRow, 10);
+      const deptCell = detailSheet.getRow(detailCurrentRow).getCell(1);
+      deptCell.value = report.departmentName.toUpperCase();
+      deptCell.font = { bold: true, name: 'Arial', size: 10 };
+      deptCell.fill = deptFill;
+      deptCell.border = borderStyle;
+      detailCurrentRow++;
+
+      report.detailRows.forEach((row) => {
+        const dataRow = detailSheet.getRow(detailCurrentRow);
+        const values = [
+          detailStt++,
+          row.userCode,
+          row.fullName,
+          row.departmentName,
+          new Date(row.workDate).toLocaleDateString('vi-VN'),
+          new Date(row.startTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          new Date(row.endTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          row.checkIn
+            ? new Date(row.checkIn).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '',
+          row.checkOut
+            ? new Date(row.checkOut).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '',
+          row.actualHours,
+        ];
+
+        values.forEach((v, i) => {
+          const cell = dataRow.getCell(i + 1);
+          cell.value = v;
+          cell.font = bodyFont;
+          cell.border = borderStyle;
+          cell.alignment = i >= 4 ? centerAlign : { vertical: 'middle' };
+        });
+
+        detailCurrentRow++;
+      });
+    }
+
+    [5, 10, 20, 22, 14, 12, 12, 12, 12, 14].forEach((w, i) => {
+      detailSheet.getColumn(i + 1).width = w;
+    });
+
+    // ===== Sheet Tổng hợp =====
+    const summarySheet = workbook.addWorksheet(`Tong hop OT T${month}-${year}`);
+
+    summarySheet.mergeCells('A1:E1');
+    summarySheet.getCell('A1').value =
+      'Công ty Cổ phần đầu tư phát triển Sky Corporation';
+    summarySheet.getCell('A1').font = { bold: true, name: 'Arial', size: 10 };
+
+    summarySheet.mergeCells('A2:E2');
+    summarySheet.getCell('A2').value =
+      `TỔNG HỢP GIỜ LÀM THÊM THÁNG ${String(month).padStart(2, '0')} NĂM ${year}`;
+    summarySheet.getCell('A2').font = { bold: true, name: 'Arial', size: 10 };
+
+    const summaryHeaders = ['STT', 'Mã NV', 'Họ và tên', 'Tổng số giờ', 'Tổng'];
+
+    const summaryHeaderRow = summarySheet.getRow(4);
+    summaryHeaders.forEach((h, i) => {
+      const cell = summaryHeaderRow.getCell(i + 1);
+      cell.value = h;
+      cell.fill = headerFill;
+      cell.font = headerFont;
+      cell.alignment = centerAlign;
+      cell.border = borderStyle;
+    });
+    summarySheet.getRow(4).height = 20;
+
+    let summaryCurrentRow = 5;
+    let summaryStt = 1;
+
+    for (const report of reports) {
+      // Department header
+      summarySheet.mergeCells(summaryCurrentRow, 1, summaryCurrentRow, 5);
+      const deptCell = summarySheet.getRow(summaryCurrentRow).getCell(1);
+      deptCell.value = report.departmentName.toUpperCase();
+      deptCell.font = { bold: true, name: 'Arial', size: 10 };
+      deptCell.fill = deptFill;
+      deptCell.border = borderStyle;
+      summaryCurrentRow++;
+
+      report.summaryRows.forEach((row) => {
+        const dataRow = summarySheet.getRow(summaryCurrentRow);
+        const values = [
+          summaryStt++,
+          row.userCode,
+          row.fullName,
+          row.totalHours,
+          row.total,
+        ];
+
+        values.forEach((v, i) => {
+          const cell = dataRow.getCell(i + 1);
+          cell.value = v;
+          cell.font = bodyFont;
+          cell.border = borderStyle;
+          cell.alignment = i >= 3 ? centerAlign : { vertical: 'middle' };
+        });
+
+        summaryCurrentRow++;
+      });
+    }
+
+    [5, 10, 20, 14, 10].forEach((w, i) => {
+      summarySheet.getColumn(i + 1).width = w;
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=OT-report-all-${month}-${year}.xlsx`,
+    );
     await workbook.xlsx.write(res);
     res.end();
   }

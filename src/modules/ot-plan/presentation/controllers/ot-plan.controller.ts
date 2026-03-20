@@ -9,13 +9,17 @@ import {
   Patch,
   Inject,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import * as otPlanServiceInterface from '@modules/ot-plan/application/interfaces/ot-plan.service.interface';
 import { CreateOTPlanDto } from '@modules/ot-plan/application/dto/create-ot-plan.dto';
 import { UpdateOTPlanDto } from '@modules/ot-plan/application/dto/update-ot-plan.dto';
 import { PreviewOTPlanResponseDto } from '@modules/ot-plan/application/dto/preview-ot-plan.dto';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('OT Plan')
 @Controller('ot-plan')
 export class OTPlanController {

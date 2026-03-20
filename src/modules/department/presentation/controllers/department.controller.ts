@@ -7,13 +7,17 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { DepartmentService } from '../../application/services/department.service';
 import { Department } from '@domain/entities/department.entity';
 import { CreateDepartmentDto } from '../../application/dto/create-department.dto';
 import { randomUUID } from 'node:crypto';
 import { UpdateDepartmentDto } from '../../application/dto/update-department.dto';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @Controller('department')
 export class DepartmentController {
   constructor(

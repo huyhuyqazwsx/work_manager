@@ -42,6 +42,7 @@ export class UserController {
     return this.userService.getProfile(req.user.userId);
   }
 
+  @UseGuards(AccessTokenGuard)
   @Get('department/:managerId/users')
   @ApiOperation({ summary: 'Get users in manager department' })
   @ApiParam({
@@ -55,6 +56,7 @@ export class UserController {
     return this.userService.getUsersByUserOfDepartment(managerId);
   }
 
+  @UseGuards(AccessTokenGuard)
   @Get()
   async findAll(): Promise<UserResponseDto[]> {
     return this.userService.findAllUsers();
@@ -65,11 +67,13 @@ export class UserController {
     return this.userService.findUserByEmail(email);
   }
 
+  @UseGuards(AccessTokenGuard)
   @Get('count')
   async getCountCode() {
     return await this.userService.getCountCode();
   }
 
+  @UseGuards(AccessTokenGuard)
   @Get(':id')
   async findById(@Param('id') id: string): Promise<UserAuth | null> {
     return this.userService.findUserById(id);

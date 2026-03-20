@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { IReportService } from '../interfaces/report.service.interface';
 import * as reportRepositoryInterface from '../../domain/repositories/report.repository.interface';
 import * as departmentServiceInterface from '@modules/department/application/interfaces/department.service.interface';
@@ -19,6 +19,8 @@ import * as holidayRepositoryInterface from '@modules/holiday/domain/repositorie
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-report.dto';
 import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
+import { OTMonthlyReportDto } from '@modules/report/application/dto/ot-monthly-report.dto';
+import { AppError, AppException } from '@domain/errors';
 
 const DAY_OF_WEEK = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 type DayFlag =
@@ -255,9 +257,39 @@ export class ReportService implements IReportService {
           const reqEnd = new Date(req.toDate);
           reqEnd.setHours(23, 59, 59, 999);
 
-          const cursor = new Date(reqStart);
+          // Trừ paid đã dùng trước monthStart
+          if (reqStart < monthStart) {
+            const cursorPre = new Date(reqStart);
+            while (cursorPre < monthStart && remainingPaid > 0) {
+              const dow = cursorPre.getDay();
+              if (dow !== 0 && dow !== 6) {
+                const isFirstDay =
+                  cursorPre.toDateString() === reqStart.toDateString();
+                const isLastDay =
+                  cursorPre.toDateString() === reqEnd.toDateString();
+                const isHalf =
+                  (isFirstDay &&
+                    (req.fromSession as HolidaySession) ===
+                      HolidaySession.AFTERNOON) ||
+                  (isLastDay &&
+                    (req.toSession as HolidaySession) ===
+                      HolidaySession.MORNING);
+                remainingPaid -= isHalf ? 0.5 : 1;
+              }
+              cursorPre.setDate(cursorPre.getDate() + 1);
+            }
+            remainingPaid = Math.max(0, remainingPaid);
+          }
 
-          while (cursor <= reqEnd) {
+          // Giới hạn cursor trong tháng
+          const cursorStart =
+            reqStart < monthStart ? new Date(monthStart) : new Date(reqStart);
+          const cursorEnd =
+            reqEnd > monthEnd ? new Date(monthEnd) : new Date(reqEnd);
+
+          const cursor = new Date(cursorStart);
+
+          while (cursor <= cursorEnd) {
             const dateStr = cursor.toDateString();
             const flag = dayFlagMap.get(dateStr);
 
@@ -273,7 +305,7 @@ export class ReportService implements IReportService {
             const dayValue = isHalf ? 0.5 : 1;
 
             if (flag === 'WEEKEND') {
-              // bỏ qua
+              // skip
             } else if (flag === 'HOLIDAY_FULL') {
               daySymbolMap.set(dateStr, 'NL');
               totalHoliday += 1;
@@ -357,6 +389,41 @@ export class ReportService implements IReportService {
 
   async getAllOTPlanForHR(dto: GetOTPlanReportDto) {
     return this.reportRepository.getOTPlanReport(dto);
+  }
+  async getOTMonthlyReport(
+    departmentId: string,
+    month: number,
+    year: number,
+  ): Promise<OTMonthlyReportDto> {
+    const department = await this.departmentService.findById(departmentId);
+
+    if (!department) {
+      throw new AppException(
+        AppError.DEPARTMENT_NOT_FOUND,
+        'Department not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const [detailRows, summaryRows] = await Promise.all([
+      this.reportRepository.getOTDetailReport(departmentId, month, year),
+      this.reportRepository.getOTSummaryReport(departmentId, month, year),
+    ]);
+
+    return {
+      month,
+      year,
+      departmentName: department.name,
+      detailRows,
+      summaryRows,
+    };
+  }
+
+  async getOTMonthlyReportAll(
+    month: number,
+    year: number,
+  ): Promise<OTMonthlyReportDto[]> {
+    return this.reportRepository.getOTMonthlyReportAll(month, year);
   }
 
   // ===== Private helpers =====

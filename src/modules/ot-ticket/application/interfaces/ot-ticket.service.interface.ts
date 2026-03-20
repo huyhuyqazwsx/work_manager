@@ -13,7 +13,11 @@ export interface IOTTicketService extends IBaseCrudService<OTTicket> {
     otType: OTType,
   ): Promise<OTTicket>;
   checkOut(ticketId: string, userId: string, result: string): Promise<OTTicket>;
-  verify(ticketId: string, managerId: string): Promise<OTTicket>;
+  verify(
+    ticketId: string,
+    managerId: string,
+    actualHours?: number,
+  ): Promise<OTTicket>;
   reject(ticketId: string, note: string): Promise<OTTicket>;
   cancel(ticketId: string, managerId: string): Promise<OTTicket>;
   processOTTicketLifecycle(): Promise<void>;

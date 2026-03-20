@@ -18,6 +18,7 @@ import { CurrentUser } from '@modules/jwt/decorators/current-user.decorator';
 import * as requestTypes from '@domain/type/request.types';
 import * as requestTypes_1 from '@domain/type/request.types';
 import { CheckInOtTicketDto } from '@modules/ot-ticket/application/dto/check-in-ticket.dto';
+import { VerifyOTTicketDto } from '@modules/ot-ticket/application/dto/verify-ot-ticket.dto';
 
 @ApiTags('OT Ticket')
 @Controller('ot-ticket')
@@ -117,8 +118,9 @@ export class OTTicketController {
   verify(
     @Param('id') id: string,
     @CurrentUser() user: requestTypes.RequestUser,
+    @Body() body: VerifyOTTicketDto,
   ) {
-    return this.otTicketService.verify(id, user.userId);
+    return this.otTicketService.verify(id, user.userId, body.actualHours);
   }
 
   @Patch(':id/reject')

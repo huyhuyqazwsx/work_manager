@@ -128,7 +128,11 @@ export class OTTicketService
     return ticket;
   }
 
-  async verify(ticketId: string, managerId: string): Promise<OTTicket> {
+  async verify(
+    ticketId: string,
+    managerId: string,
+    actualHours?: number,
+  ): Promise<OTTicket> {
     const ticket = await this.getTicketById(ticketId);
 
     if (!ticket.isCompleted()) {
@@ -140,6 +144,7 @@ export class OTTicketService
     }
 
     ticket.verify(managerId);
+    if (actualHours) ticket.actualHours = actualHours;
 
     await this.otTicketRepository.runInTransaction(async (tx) => {
       await this.otTicketRepository.update(ticketId, ticket, tx);

@@ -387,7 +387,6 @@ export class UserService
 
     await this.runInTransaction(async (tx) => {
       user.role = role;
-      await this.update(user.id, user, tx);
 
       switch (role) {
         case UserRole.DEPARTMENT_HEAD: {
@@ -422,6 +421,8 @@ export class UserService
           }
 
           department.managerId = userId;
+          user.departmentId = department.id;
+          user.departmentName = department.name;
           await this.departmentService.update(department.id, department, tx);
           break;
         }
@@ -441,6 +442,8 @@ export class UserService
         default:
           break;
       }
+
+      await this.update(user.id, user, tx);
     });
   }
 

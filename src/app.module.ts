@@ -40,7 +40,6 @@ import { ReportModule } from '@modules/report/report.module';
     HolidayModule,
     LeaveTypeModule,
     PolicyModule,
-    LeaveTypeModule,
     StorageModule,
     CompensationModule,
     OTTicketModule,

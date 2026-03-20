@@ -3,6 +3,9 @@ import { GetLeaveReportDto } from '@modules/report/application/dto/get-leave-rep
 import { PaginatedLeaveRequests } from '@modules/leave/application/dto/paginated-leave-requests.dto';
 import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
 import { OTPlan } from '@domain/entities/ot-plan.entity';
+import { OTDetailReportItem } from '@modules/report/application/dto/ot-detail-report.dto';
+import { OTSummaryReportItem } from '@modules/report/application/dto/ot-summary-report.dto';
+import { OTMonthlyReportDto } from '@modules/report/application/dto/ot-monthly-report.dto';
 
 export interface LeaveRequestRaw {
   id: string;
@@ -37,6 +40,23 @@ export interface IReportRepository {
   ): Promise<{ minDate: Date | null; maxDate: Date | null }>;
 
   findHolidaysByMonth(month: number, year: number): Promise<HolidayRaw[]>;
+
+  getOTDetailReport(
+    departmentId: string,
+    month: number,
+    year: number,
+  ): Promise<OTDetailReportItem[]>;
+
+  getOTMonthlyReportAll(
+    month: number,
+    year: number,
+  ): Promise<OTMonthlyReportDto[]>;
+
+  getOTSummaryReport(
+    departmentId: string,
+    month: number,
+    year: number,
+  ): Promise<OTSummaryReportItem[]>;
 
   getLeaveReport(dto: GetLeaveReportDto): Promise<PaginatedLeaveRequests>;
 

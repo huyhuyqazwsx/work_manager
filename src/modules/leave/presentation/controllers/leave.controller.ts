@@ -15,6 +15,7 @@ import {
   UseInterceptors,
   ParseFilePipe,
   MaxFileSizeValidator,
+  UseGuards,
 } from '@nestjs/common';
 import * as leaveServiceInterface from '../../application/interfaces/leave.service.interface';
 import { LeaveRequest } from '@domain/entities/leave_request.entity';
@@ -35,7 +36,10 @@ import { NotifyEmailResponse } from '@modules/leave/application/dto/notify_email
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AnnualLeaveDashboardDto } from '@modules/leave/application/dto/leave-dashboard.dto';
 import { RangeExistDto } from '@modules/leave/application/dto/range-exist.dto';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('Leave')
 @Controller('leave')
 export class LeaveController {

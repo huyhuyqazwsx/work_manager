@@ -8,6 +8,7 @@ import {
   Res,
   UploadedFile,
   UseFilters,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
@@ -23,12 +24,17 @@ import * as IInviteService from '../../application/interface/IInviteService';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InviteImportResponse } from '../../application/dto/invite-import.response';
 import { FileSizeExceptionFilter } from '@helper/filters/file-size.filter';
-import { UserStatus } from '@domain/enum/enum';
+import { UserRole, UserStatus } from '@domain/enum/enum';
 import * as inviteTypes_1 from '../../../../domain/type/invite.types';
 import { AppError, AppException } from '@domain/errors';
+import { AccessTokenGuard } from '@modules/jwt/guards/access-token.guard';
+import { RolesGuard } from '@modules/jwt/guards/roles.guard';
+import { Roles } from '@modules/jwt/decorators/roles.decorator';
 
+@UseGuards(AccessTokenGuard, RolesGuard)
 @ApiTags('Invites')
 @ApiBearerAuth()
+@Roles(UserRole.HR)
 @Controller('invites')
 export class InviteController {
   constructor(

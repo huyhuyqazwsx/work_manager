@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infra/database/prisma/PrismaService';
-import { LeaveRequestStatus, LeaveTypeCode } from '@domain/enum/enum';
+import {
+  LeaveRequestStatus,
+  LeaveTypeCode,
+  OTTicketStatus,
+} from '@domain/enum/enum';
 import {
   HolidayRaw,
   IReportRepository,
@@ -13,6 +17,13 @@ import { LeaveRequestMapper } from '@modules/leave/infrastructure/Repository/lea
 import { OTPlanMapper } from '@modules/ot-plan/infrastructure/ot-plan.mapper';
 import { OTPlan } from '@domain/entities/ot-plan.entity';
 import { GetOTPlanReportDto } from '@modules/report/application/dto/get-ot-plan-report.dto';
+import { OTSummaryReportItem } from '@modules/report/application/dto/ot-summary-report.dto';
+import { OTDetailReportItem } from '@modules/report/application/dto/ot-detail-report.dto';
+import {
+  OTDetailRowDto,
+  OTMonthlyReportDto,
+  OTSummaryRowDto,
+} from '@modules/report/application/dto/ot-monthly-report.dto';
 
 @Injectable()
 export class PrismaReportRepository implements IReportRepository {
@@ -166,8 +177,11 @@ export class PrismaReportRepository implements IReportRepository {
       ...(userIds.length && { createdBy: { in: userIds } }),
       ...(leaveTypeCode && { leaveTypeCode }),
       ...(status && { status }),
-      ...(fromDate && { fromDate: { gte: new Date(fromDate) } }),
-      ...(toDate && { toDate: { lte: new Date(toDate) } }),
+      ...(fromDate &&
+        toDate && {
+          fromDate: { lte: new Date(toDate) },
+          toDate: { gte: new Date(fromDate) },
+        }),
     };
 
     const [rows, total] = await Promise.all([
@@ -271,5 +285,213 @@ export class PrismaReportRepository implements IReportRepository {
         totalPages: Math.ceil(total / pageSize),
       },
     };
+  }
+
+  async getOTDetailReport(
+    departmentId: string,
+    month: number,
+    year: number,
+  ): Promise<OTDetailReportItem[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const users = await this.prisma.user.findMany({
+      where: { departmentId },
+      select: { id: true, code: true, fullName: true, departmentName: true },
+    });
+
+    if (!users.length) return [];
+
+    const userIds = users.map((u) => u.id);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const tickets = await this.prisma.oTTicket.findMany({
+      where: {
+        userId: { in: userIds },
+        status: { in: [OTTicketStatus.COMPLETED, OTTicketStatus.VERIFIED] },
+        workDate: { gte: start, lte: end },
+      },
+      orderBy: [{ userId: 'asc' }, { workDate: 'asc' }],
+    });
+
+    return tickets.map((t, i) => {
+      const user = userMap.get(t.userId);
+      return {
+        stt: i + 1,
+        userCode: user?.code ?? '',
+        fullName: user?.fullName ?? '',
+        departmentName: user?.departmentName ?? '',
+        workDate: t.workDate,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        checkIn: t.checkIn,
+        checkOut: t.checkOut,
+        actualHours: t.actualHours ?? 0,
+      };
+    });
+  }
+
+  async getOTMonthlyReportAll(
+    month: number,
+    year: number,
+  ): Promise<OTMonthlyReportDto[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    // 1 query lấy tất cả users + departmentName
+    const users = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        code: true,
+        fullName: true,
+        departmentId: true,
+        departmentName: true,
+      },
+    });
+
+    if (!users.length) return [];
+
+    const userIds = users.map((u) => u.id);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    // 1 query lấy tất cả departments
+    const departments = await this.prisma.department.findMany({
+      select: { id: true, name: true },
+    });
+
+    // 1 query lấy tất cả tickets trong tháng
+    const tickets = await this.prisma.oTTicket.findMany({
+      where: {
+        userId: { in: userIds },
+        status: { in: [OTTicketStatus.COMPLETED, OTTicketStatus.VERIFIED] },
+        workDate: { gte: start, lte: end },
+      },
+      orderBy: [{ userId: 'asc' }, { workDate: 'asc' }],
+    });
+
+    // Group tickets theo departmentId
+    const ticketsByDept = new Map<string, typeof tickets>();
+    for (const t of tickets) {
+      const user = userMap.get(t.userId);
+      if (!user) continue;
+      const list = ticketsByDept.get(user.departmentId) ?? [];
+      list.push(t);
+      ticketsByDept.set(user.departmentId, list);
+    }
+
+    const reports: OTMonthlyReportDto[] = [];
+
+    for (const dept of departments) {
+      const deptTickets = ticketsByDept.get(dept.id) ?? [];
+      if (!deptTickets.length) continue;
+
+      // Build detail rows
+      const detailRows: OTDetailRowDto[] = deptTickets.map((t, i) => {
+        const user = userMap.get(t.userId);
+        return {
+          stt: i + 1,
+          userCode: user?.code ?? '',
+          fullName: user?.fullName ?? '',
+          departmentName: user?.departmentName ?? dept.name,
+          workDate: t.workDate,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          checkIn: t.checkIn,
+          checkOut: t.checkOut,
+          actualHours: t.actualHours ?? 0,
+        };
+      });
+
+      // Build summary rows — group by userId
+      const summaryMap = new Map<
+        string,
+        { totalHours: number; total: number }
+      >();
+      for (const t of deptTickets) {
+        const existing = summaryMap.get(t.userId);
+        if (existing) {
+          existing.totalHours += t.actualHours ?? 0;
+          existing.total += 1;
+        } else {
+          summaryMap.set(t.userId, {
+            totalHours: t.actualHours ?? 0,
+            total: 1,
+          });
+        }
+      }
+
+      const summaryRows: OTSummaryRowDto[] = [...summaryMap.entries()].map(
+        ([userId, summary], i) => {
+          const user = userMap.get(userId);
+          return {
+            stt: i + 1,
+            userCode: user?.code ?? '',
+            fullName: user?.fullName ?? '',
+            totalHours: summary.totalHours,
+            total: summary.total,
+          };
+        },
+      );
+
+      reports.push({
+        month,
+        year,
+        departmentName: dept.name,
+        detailRows,
+        summaryRows,
+      });
+    }
+
+    return reports;
+  }
+
+  async getOTSummaryReport(
+    departmentId: string,
+    month: number,
+    year: number,
+  ): Promise<OTSummaryReportItem[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const users = await this.prisma.user.findMany({
+      where: { departmentId },
+      select: { id: true, code: true, fullName: true },
+    });
+
+    if (!users.length) return [];
+
+    const userIds = users.map((u) => u.id);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const tickets = await this.prisma.oTTicket.findMany({
+      where: {
+        userId: { in: userIds },
+        status: { in: [OTTicketStatus.COMPLETED, OTTicketStatus.VERIFIED] },
+        workDate: { gte: start, lte: end },
+      },
+    });
+
+    const summaryMap = new Map<string, { totalHours: number; total: number }>();
+
+    for (const t of tickets) {
+      const existing = summaryMap.get(t.userId);
+      if (existing) {
+        existing.totalHours += t.actualHours ?? 0;
+        existing.total += 1;
+      } else {
+        summaryMap.set(t.userId, { totalHours: t.actualHours ?? 0, total: 1 });
+      }
+    }
+
+    return [...summaryMap.entries()].map(([userId, summary], i) => {
+      const user = userMap.get(userId);
+      return {
+        stt: i + 1,
+        userCode: user?.code ?? '',
+        fullName: user?.fullName ?? '',
+        totalHours: summary.totalHours,
+        total: summary.total,
+      };
+    });
   }
 }

@@ -254,7 +254,7 @@ export class LeaveService
       );
     }
 
-    await this.validateApprover(approverId, leaveRequest);
+    const approver = await this.validateApprover(approverId, leaveRequest);
 
     leaveRequest.approve(approverId);
 
@@ -263,7 +263,7 @@ export class LeaveService
       await this.notifyApprover(
         leaveRequest,
         user,
-        null,
+        approver.fullName,
         EmailType.APPROVED_LEAVE_REQUEST,
         tx,
       );
@@ -303,7 +303,7 @@ export class LeaveService
       );
     }
 
-    await this.validateApprover(approverId, leaveRequest);
+    const approved = await this.validateApprover(approverId, leaveRequest);
 
     leaveRequest.reject(approverId);
     if (reason) leaveRequest.updateReason(reason);
@@ -320,7 +320,7 @@ export class LeaveService
       await this.notifyApprover(
         leaveRequest,
         user,
-        null,
+        approved.fullName,
         EmailType.REJECTED_LEAVE_REQUEST,
         tx,
       );
@@ -893,8 +893,8 @@ export class LeaveService
           {
             id: randomUUID(),
             type: emailType,
-            emailSend: leaveRequest.emailSend,
-            emailCC: leaveRequest.emailCC,
+            emailSend: user.email,
+            emailCC: [],
             payload,
             createdAt: new Date(),
           },
@@ -939,7 +939,7 @@ export class LeaveService
   private async validateApprover(
     approverId: string,
     leaveRequest: LeaveRequest,
-  ): Promise<void> {
+  ): Promise<UserAuth> {
     const [approver, requestOwner] = await Promise.all([
       this.userService.findUserById(approverId),
       this.userService.findUserById(leaveRequest.createdBy),
@@ -958,7 +958,7 @@ export class LeaveService
         HttpStatus.NOT_FOUND,
       );
 
-    if (approver.isBOD()) return;
+    if (approver.isBOD()) return approver;
 
     const department = await this.departmentService.findById(
       requestOwner.departmentId,
@@ -979,6 +979,8 @@ export class LeaveService
         HttpStatus.FORBIDDEN,
       );
     }
+
+    return approver;
   }
 
   private buildNotifyInfo(
